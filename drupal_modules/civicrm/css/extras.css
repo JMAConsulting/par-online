@@ -1,0 +1,161 @@
+/* $Id$ */
+
+/*
+** Put your local CSS modifications in this file
+** if you don't want to modify system provided
+** civicrm.css.
+*/
+
+#crm-container .close-icon {
+    display:none;
+}
+
+#civicrm-dashboard ul.column{
+    min-height: 117px;
+    padding-bottom: 0;
+}
+
+.customFields td #email {
+    width:200px !important;
+}
+.customFields td #first_name, .customFields td #last_name {
+    width:120px !important;
+}
+
+#civicrm-menu, #toolbar {
+    display:none;
+}
+
+td.contact_sub_type {
+    display:none !important;
+}
+
+#editrow-contact_sub_type {
+    display:none !important;
+}
+
+#crm-container .column-0 {
+    width:100% !important;
+}
+
+#crm-contact-actions-wrapper {
+    width:131px !important;
+}
+ 
+#crm-contact-actions-list {
+    width:328px !important;
+}
+
+#container-donation .title{
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#container-donation .subtitle{
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.customHeader label {
+    float:left;   
+}
+
+.customFields td input {
+    width: 80px;
+    float:left;   
+}
+
+table#donation_summary tr.schedule {
+    background-color: #FBE3E4 !important;
+}
+
+table#donation_summary tr.edited, table#donation_summary tr.delete {
+    background-color: #D66262 !important;
+}
+
+div div#container-donation{
+    width: 50%;
+}
+
+div div#container-communication{
+    float: right;
+    width: 50%;
+}
+
+table#donation_summary tr.edited, table#donation_summary tr.new {
+    background-color: #F4F47A !important;
+}
+
+.ui-tabs .ui-tabs-nav li.ui-tabs-selected a {
+    background: none repeat scroll 0 0 #cccccc;
+    font-weight: normal;
+}
+
+#donation_summary .singleFreqUnit{
+    display: none;
+}
+
+table.pastoral-charge-view, table.pastoral-charge-view table, table.pastoral-charge-view td {
+    border: 0px !important;
+}
+
+table.pastoral-charge-view .content,  table.individual-profile td.content {
+    background-color: #E7E7E8 !important;
+    border: 2px solid !important;
+}
+
+table.pastoral-charge-view table td {
+    font-size: 11px;
+}
+
+thead.sticky tr th div.sticky-header {
+    top:0px !important;
+}
+
+#donation_summary .select-delete, #donation_summary .form-select, .amount .form-text, #donation_summary .payment_status, #donation_summary .payment_instrument, #donation_summary .cc_type {
+    margin-top:22px !important;
+}
+table tbody tr td .form-text {
+ margin-top:0px !important;
+}
+
+
+/* css for priceset fields */
+table#donation_summary td#priceset-details #priceset .crm-section .label{
+    text-align: left;
+    width: 140px;
+}
+
+table#donation_summary td#priceset-details #priceset .crm-section .content{
+    margin-left:0px;
+}
+
+.form-contact .label-txt label{font-weight:bold !important;}
+
+#crm-container .household .content {
+    margin-left: 50px;
+}
+
+#donations-household {
+    margin-left: 50px;
+    clear: both;
+}
+
+#crm-container .household .content input {
+    float: left;
+    margin-right: 5px;
+    margin-top: 2px;
+    margin-bottom: 5px;
+}
+
+#crm-container .household .content label{
+    float: left;
+    text-align: left;
+    width: 98%;
+    margin-bottom: 5px;
+}
+
+.mnth-donate {
+    clear: both;
+    padding-top: 15px;
+}

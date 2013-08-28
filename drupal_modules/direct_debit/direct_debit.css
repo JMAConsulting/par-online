@@ -1,0 +1,54 @@
+#direct-debit-admin-overview dl.multiselect dd.a, #direct-debit-admin-overview  dl.multiselect dd.a .form-item{
+  width: 14em;
+}
+
+#direct-debit-admin-overview input.single_filter{
+  display: none;
+}
+
+#direct-debit-admin-overview tr.odd, #direct-debit-admin-overview tr.even {
+  background-color: #FFFFFF;
+}
+
+#direct-debit-admin-overview tr.in_progress {
+  background-color: #FFE596;
+}
+
+#direct-debit-admin-overview tr.completed{
+  background-color: #DDFFDD;
+}
+
+#direct-debit-admin-overview tr.failed, #direct-debit-admin-overview tr.canceled{
+  background-color: #FFCCCC;
+}
+
+#direct-debit-admin-overview td p {
+  margin: 0;
+}
+
+/** direct_debit_admin_receipt.tpl.php **/
+
+#direct_debit_receipt_wrapper {
+  margin: 2em;
+  border: 1px solid #000;
+  width: 40em;
+}
+
+#direct_debit_receipt {
+  margin: 2em;
+}
+
+#direct_debit_receipt .header,
+#direct_debit_receipt .issuer,
+#direct_debit_receipt .contributor,
+#direct_debit_receipt .amount_numeric {
+  margin-bottom: 1em;
+}
+
+#direct_debit_receipt .footer {
+  margin-top: 1em;
+}
+
+#direct_debit_receipt p{
+  margin: 0.2em 1em;
+}

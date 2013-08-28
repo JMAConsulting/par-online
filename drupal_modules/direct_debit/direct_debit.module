@@ -1,0 +1,3979 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Payment Processor to manage direct debit transactions. Attention: This payment processor stores confidential data like the bank accounts information in your drupal database.
+ *
+ */
+
+/**
+ * useful Documentation:
+ * 
+ *     // todo: call direct_debit_pp_update_civicrm_status for 5 in create DTA
+ * 
+ * 
+ * we could mask the account numbers after setting transaction to complete / canceled / failed
+ * 12324567890 = ******7890 ... like it's done by credit card
+ * optional we could offer a settings option for this
+ * 
+ **/
+
+
+
+/**
+* Valid permissions for the direct_debit module
+*
+* @return array An array of valid permissions for the onthisdate module
+*/
+
+function direct_debit_permission() {
+    return array(
+    'administer direct debit' => array(
+      'title' => t('access direct debit'), 
+      'description' => t('Perform administration tasks for my module.'),
+    ),
+  );
+}
+
+/**
+ * call hook_menu
+ *
+ * @return array, An array of menu items
+ */
+function direct_debit_menu() {
+
+  $items = array();
+
+  $items['direct_debit'] = array(
+    'title' => 'Direct Debit and Credit Management',
+    'description' => 'Direct Debit and Credit Management',
+    'page callback' => 'direct_debit_admin',
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['direct_debit/rbc'] = array(
+    'title' => 'RBC Files Archive',
+    'description' => 'Direct Debit Management - RBC Files Archive',
+    'page callback' => 'direct_debit_rbc_overview',
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['direct_debit/rbc/%'] = array(
+    'title' => 'RBC Files Archive',
+    'description' => 'RBC Files Archive',
+    'page callback' => 'direct_debit_rbc_overview',
+    'page arguments' => array(2),
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['direct_debit/rbc/%/download'] = array(
+    'title' => 'RBC Files Archive',
+    'description' => 'Direct Debit Management - RBC Files Archive',
+    'page callback' => 'direct_debit_rbc_download_create',
+    'page arguments' => array(2),
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['direct_credit/rbc/%/download'] = array(
+    'title' => 'RBC Files Archive',
+    'description' => 'Direct Debit Management - RBC Files Archive',
+    'page callback' => 'direct_credit_rbc_download_create',
+    'page arguments' => array(2),
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  // $items['direct_debit/details/%'] = array(
+  //   'title' => 'Direct Debit Details',
+  //   'page callback' => 'direct_debit_admin_details',
+  //   'page arguments' => array(2),
+  //   'access arguments' => array('access direct debit'),
+  //   'type' => MENU_CALLBACK,
+  // );
+  $items['direct_debit/receipt/%'] = array(
+    'title' => 'Direct Debit Receipt',
+    'page callback' => 'direct_debit_admin_receipt',
+    'page arguments' => array(2),
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['direct_debit/preview/mail'] = array(
+    'title' => 'Direct Debit Mail Preview',
+    'page callback' => 'direct_debit_admin_preview_mail',
+    'page arguments' => array(2),
+    'access arguments' => array('administer direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['admin/settings/direct_debit'] = array(
+    'title' => 'Direct Debit',
+    'description' => 'Configure Direct Debit',
+    'page callback' => 'direct_debit_admin_settings',
+    'access arguments' => array('administer direct debit'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['rbc/summary/%/download'] = array(
+    'title' => 'Summary Report',
+    'description' => 'Direct Debit and Direct Credit Summary',
+    'page callback' => 'rbc_summary_download_create',
+    'page arguments' => array(2),
+    'access arguments' => array('access direct debit'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * call hook theme 
+ * 
+ * Register the theme implementations.
+ *
+ * @return void
+ */
+function direct_debit_theme() {
+  return array(
+    'direct_debit_admin_overview' => array(
+      'render element' => 'form',
+    ),
+    'direct_debit_admin_overview_table' => array(
+      'render element' => 'form',
+    ),
+    'direct_debit_admin_filters' => array(
+      'render element' => 'form',
+    ),
+    'direct_debit_admin_details' => array(
+      'render element' => 'form',
+    ),
+    'direct_debit_rbc_overview' => array(
+      'arguments' => array('vars' => NULL),
+    ),
+    'direct_debit_block_content' => array(
+      'arguments' => array('vars' => NULL),
+    ),
+    'direct_debit_admin_receipt' => array(
+      'template' => 'direct_debit_admin_receipt',
+      'arguments' => array('vars' => NULL),
+    ),
+    'direct_debit_admin_mail' => array(
+      'template' => 'direct_debit_admin_mail',
+      'arguments' => array('vars' => NULL),
+    ),
+    // 'direct_debit_civicrm_settings_php' => array(
+    //   'template' => 'direct_debit_civicrm_settings_php',
+    //   'arguments' => array('vars' => NULL),
+    // ),
+  );
+}
+
+/**
+ * Build the two separated forms.
+ *
+ * @return string, the rendered form output
+ */
+function direct_debit_admin_settings() {
+    //  $output = drupal_get_form('direct_debit_admin_setings_update_form');
+
+  $output = drupal_get_form('direct_debit_admin_settings_form');
+
+  return $output;
+}
+
+/**
+ * Build the update form.
+ *
+ * @return array form: The update form array.
+ */
+function direct_debit_admin_setings_update_form() {
+  $form = array();
+  
+  $form['update'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Update Bank Identification Numbers'),
+    // '#description' => t('')
+
+  );
+  
+  $form['update']['direct_debit_update_bank_identification_numbers_upload'] = array(
+    '#type' => 'file',
+    '#title' => t('Upload <em>PC-Text</em> file containing Bank Identification Numbers'),
+    '#maxlength' => 40,
+    '#description' => t("Upload a file containing Bank Identification Numbers to update the internal database with current valid numbers. This feature is tested with german BIN's only. You get the file containing german BIN's from: !link. Download the <em>PC-Text</em> format there.",
+      array('!link' => l('The German Bundesbank', 'http://www.bundesbank.de/zahlungsverkehr/zahlungsverkehr_bankleitzahlen_download.php'))),
+  );
+  
+  $form['update']['direct_debit_update_notification'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Update notification'),
+    '#description' => t('A message will appear in the Direct Debit overview to remind you to update the Bank Identification Numbers.'),
+    '#default_value' => TRUE,
+  );
+  
+  $timestamp = time();
+  $now = array('day' => format_date($timestamp, 'custom', 'j'),
+    'month' => format_date($timestamp, 'custom', 'n'),
+    'year' => format_date($timestamp, 'custom', 'Y')
+  );
+    
+  $default_date = variable_get('direct_debit_update_expiration', $now);
+  // foreach ($default_date as $key => $value) {
+  //   $default_date[$key] = check_plain($default_date[$key]);
+  // }
+  $form['update']['direct_debit_update_expiration'] = array(
+    '#type' => 'date',
+    '#title' => t('Date of expiration'),
+    '#default_value' => $default_date,
+    '#after_build' => array('direct_debit_update_expiration_set_year_range'),
+  );
+  
+  $form['update']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Start update'),
+  );
+  
+  $form['#attributes'] = array('enctype' => 'multipart/form-data');
+
+  return $form;
+}
+
+/**
+ * Build the direct debit settings form.
+ *
+ * @return array form: The settings form array.
+ */
+function direct_debit_admin_settings_form() {
+  $form = array();
+  
+  $form['rbc'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('RBC Settings'),
+    '#description' => '<p class="message">' . t('Please note: RBC restricts strings to uppercase alphanumeric characters, spaces and . , & - / + * $ %. When using Payment_RBC package the input will be transformed automatically to RBC standard.') . '</p>'
+  );
+
+  // if (0 == db_result(db_query("SELECT COUNT(*) FROM {direct_debit_bank_identification_numbers}"))){
+  //   drupal_set_message(t('You must upload Bank Information Numbers above before being able to configure further settings.'), 'warning', FALSE);
+  //   $form['dta']['#description'] = '<p><strong>' . t('You must upload Bank Information Numbers above before being able to configure further settings.') . '</strong></p>' . $form['dta']['#description'];
+    
+  //   // do not display the other form values if there are no Bank Identification Numbers in database
+  //   return $form;
+  // }
+  
+  $form['rbc']['direct_debit_rbc_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name of Account Holder'),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_name', '')),
+    '#required' => TRUE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t('Name of the account holder, up to 27 uppercase alphanumeric characters, spaces or . , & - / + * $ %.'),
+  );
+  
+  $form['rbc']['direct_debit_rbc_bank_account_number'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Bank Account Number'),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_bank_account_number', '')),
+    '#required' => TRUE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t('The organizations bank account number, up to 10 digits'),
+  );
+
+  $form['rbc']['direct_debit_rbc_bank_identification_number'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Bank Identification Number'),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_bank_identification_number', '')),
+    '#required' => TRUE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t('Bank identification number of the bank account, up to 8 digits'),
+  );
+
+  $form['rbc']['direct_debit_rbc_reference_text'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Custom Reference Text'),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_reference_text', '')),
+    '#required' => FALSE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t('Custom reference text which is shown in the accountholders bill, up to 54 uppercase alphanumeric characters, spaces or . , & - / + * $ %.'),
+  );
+  
+  $form['rbc']['direct_debit_rbc_file_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Path to RBC.php"),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_file_path', '')),
+    '#required' => FALSE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t("This module uses the PEAR Payment_RBC package. Either your site administrator installs it using the PEAR install command or you are installing it e.g. in your <strong>@path</strong> directory. Download Payment_RBC here: !pear_link. The directory path containing <strong>DTA.php</strong> must be set here. Use a path relative to the Drupal root or enter an absolute file system path. Leave this field blank to use the PHP include_path (<strong>@include_path</strong>).", array('@path' => 'sites/default/files', '!pear_link' => l('http://pear.php.net/package/Payment_DTA', 'http://pear.php.net/package/Payment_DTA'), '@include_path' => get_include_path())),
+  );
+  
+  $default_prefix  = t('contributions-') . check_plain(variable_get('site_name', ''));
+  $form['rbc']['direct_debit_rbc_file_prefix'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Set DTA file prefix"),
+    '#default_value' => check_plain(variable_get('direct_debit_rbc_file_prefix', $default_prefix)),
+    '#required' => FALSE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t("Modify the default prefix (<em>@default_prefix</em>). The DTA file name will look like this: <em>@filename</em>. It must only contain alphanumeric characters, underscores (_) or hyphens (-).",
+    array('@default_prefix' => $default_prefix, '@filename' => $default_prefix . '_'. format_date(time(), 'custom', 'Y-m-d H:i:s') .'.rbc')),
+  );
+
+  $form['rbc']['direct_credit_rbc_file_prefix'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Set RBC Credit file prefix"),
+    '#default_value' => check_plain(variable_get('direct_credit_rbc_file_prefix', $default_prefix)),
+    '#required' => FALSE,
+    // '#element_validate' =>
+    // array('direct_debit_validate_check_plain'),
+    '#description' => t("Modify the default prefix (<em>@default_prefix</em>). The DTA file name will look like this: <em>@filename</em>. It must only contain alphanumeric characters, underscores (_) or hyphens (-).",
+    array('@default_prefix' => $default_prefix, '@filename' => $default_prefix . '_'. format_date(time(), 'custom', 'Y-m-d H:i:s') .'.rbc')),
+  );
+
+  $form['issuer'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Issuer Address'),
+    '#description' => '<p>' . t('Issuer Address to be included in the Direct Debit receipt and confirmation mail.') . '</p>'
+  );
+  $form['issuer']['direct_debit_admin_issuer_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_issuer_name', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  $form['issuer']['direct_debit_admin_issuer_street'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Street'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_issuer_street', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  $form['issuer']['direct_debit_admin_issuer_post_code'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Postal code'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_issuer_post_code', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  $form['issuer']['direct_debit_admin_issuer_city'] = array(
+    '#type' => 'textfield',
+    '#title' => t('City'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_issuer_city', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+
+  
+  $form['receipt'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Set receipt text data'),
+    '#description' => '<p>' . t('Text data to be included in the Direct Debit receipt.') . '</p>'
+  );
+
+  $form['receipt']['direct_debit_admin_receipt_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_receipt_title', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  
+  $form['receipt']['direct_debit_admin_receipt_header'] = array(
+    '#type' => 'textarea',
+    '#cols' => 80,
+    '#rows' => 5,
+    '#title' => t('Header'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_receipt_header', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+
+  $form['receipt']['direct_debit_admin_receipt_footer'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Footer'),
+    '#cols' => 80,
+    '#rows' => 5,
+    '#default_value' => check_plain(variable_get('direct_debit_admin_receipt_footer', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  
+  $form['mail'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Set mail text data'),
+    '#description' => '<p>' . t('Text data to be included in the Direct Debit confirmation mail.') . '</p>'
+  );
+  $default_mail= variable_get('site_mail', ini_get('sendmail_from'));
+  $form['mail']['direct_debit_admin_mail_from'] = array(
+    '#type' => 'textfield',
+    '#title' => t('From'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_mail_from', $default_mail)),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  $form['mail']['direct_debit_admin_mail_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subject'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_mail_subject', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );  
+  $form['mail']['direct_debit_admin_mail_header'] = array(
+    '#type' => 'textarea',
+    '#cols' => 80,
+    '#rows' => 5,
+    '#title' => t('Body (first part)'),
+    '#default_value' => check_plain(variable_get('direct_debit_admin_mail_header', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  $form['mail']['direct_debit_admin_mail_footer'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Body (second part)'),
+    '#cols' => 80,
+    '#rows' => 5,
+    '#default_value' => check_plain(variable_get('direct_debit_admin_mail_footer', '')),
+    '#required' => FALSE,
+    // '#description' => t(''),
+
+  );
+  
+  $form['mail']['preview_link'] = array(
+    '#value' => t('After submitting the form values you can see the <a href="@link" target="blank">mail preview</a>.', array('@link' => url('direct_debit/preview/mail'))),
+  );
+
+      
+  // $form['submit'] = array(
+  // '#type' => 'submit',
+  // '#value' => t('Save configuration'),
+  // );
+  // 
+  // $form['reset'] = array(
+  // '#type' => 'submit',
+  // '#value' => t('Reset to defaults'),
+  // );
+  
+  $form['array_filter'] = array('#type' => 'hidden');
+  
+  $form = system_settings_form($form);
+    
+  return $form;
+}
+
+/**
+ * Validate Update Form
+ */
+function direct_debit_admin_setings_update_form_validate($form, &$form_state) {
+  date_validate($form['update']['direct_debit_update_expiration']);
+}
+
+/**
+ * Submit Update Form
+ */
+function direct_debit_admin_setings_update_form_submit($form, &$form_state) {
+  $result = direct_debit_admin_settings_general_submit($form, $form_state);
+
+
+
+  if (!$result) {
+    drupal_set_message(t('An error occurred while submitting the form. Please check your input values and try again. If this error persists, please contact the site administrator.'));
+    return;
+  }
+
+  // Check for a new uploaded update, and proceed it.
+  if ($file = file_save_upload('direct_debit_update_bank_identification_numbers_upload', array('file_validate_extensions' => array('txt csv')))) {
+    direct_debit_dta_import_german_bank_identification_numbers($file->filepath);
+    file_delete($file->filepath);
+  }
+  
+  
+  if ($op == t('Reset to defaults')) {
+    drupal_set_message(t('The configuration options have been reset to their default values.'));
+  }
+  else {
+    drupal_set_message(t('The configuration options have been saved.'));
+  }
+}
+
+/**
+ * validate the settings form
+ */
+function direct_debit_admin_settings_form_validate($form, &$form_state) {
+    
+  if (!empty($form_state['values']['direct_debit_rbc_bank_identification_number'])
+  && !direct_debit_valid_bank_identification_number($form_state['values']['direct_debit_rbc_bank_identification_number'])) {
+      
+    form_set_error('direct_debit_rbc_bank_identification_number', t('Invalid Bank Identification Number.'));
+  }
+  
+  if (!empty($form_state['values']['direct_debit_rbc_bank_account_number'])
+  && !direct_debit_valid_bank_account_number($form_state['values']['direct_debit_rbc_bank_account_number'])) {
+    
+    form_set_error('direct_debit_rbc_bank_account_number', t('Invalid Bank Identification Number.'));
+  }
+
+  if (!empty($form_state['values']['direct_debit_rbc_file_prefix'])) {
+    // validate filename
+
+    // Check for illegal characters in preset names
+    if (preg_match('%[^0-9a-zA-Z_\-\ ]%', $form_state['values']['direct_debit_rbc_file_prefix'])) {
+      form_set_error('direct_debit_rbc_file_prefix', t('The DTA file prefix must contain not more than 100 alphanumeric characters, underscores (_) or hyphens (-).'));
+    }
+    
+    if (100 < strlen($form_state['values']['direct_debit_rbc_file_prefix'])) {
+      form_set_error('direct_debit_rbc_file_prefix', t('The file name prefix must have not more than 100 characters.'));
+    }
+  }
+
+  // Try to load the DTA.php but don't return if not found because we want to check for the other form fields below too
+  if (empty($form_state['values']['direct_debit_rbc_file_path'])) {
+    // set the direct_debit_rbc_file_path should be performed in submit
+    // but we already need the variable here to validate the strings for dta
+    variable_set('direct_debit_rbc_file_path', '');
+    if(!direct_debit_admin_require_once_rbc(TRUE)) {
+      drupal_set_message(t('Unable to load the file RBC.php. Please check the path to the file RBC.php below.'), 'error', FALSE);
+    }
+    
+  } else if (!direct_debit_admin_require_once_rbc(TRUE, $form_state['values']['direct_debit_rbc_file_path'])) {
+    form_set_error('direct_debit_rbc_file_path', t('Unable to load the file RBC.php. Please check the path to the file RBC.php below.'));
+  }
+  
+  // for the case of automatic path detection we need to correct the direct_debit_rbc_file_path in the form
+  if (empty($form_state['values']['direct_debit_rbc_file_path'])) {
+    $form_state['values']['direct_debit_rbc_file_path'] = check_plain(variable_get('direct_debit_rbc_file_path', $form_state['values']['direct_debit_rbc_file_path']));
+  }
+  
+
+  // *** for the below operations, the DTA.php has to be included ***
+  
+  // Check for existing class RBC
+  if(!class_exists('RBC')) {
+    drupal_set_message(t('Unable to load the file RBC.php. Please check the path to the file RBC.php below.'), 'error', FALSE);
+    return;
+  }
+
+  // we need to create an object of DTA to make the dta strings later valid
+  $rbc_file = new RBC(DTA_DEBIT);
+
+  // make the strings valid by using the DTA method makeValidString()
+  $form_state['values']['direct_debit_rbc_name'] = substr($rbc_file->makeValidString(strtoupper($form_state['values']['direct_debit_rbc_name'])), 0, 54);
+  $form_state['values']['direct_debit_rbc_reference_text'] = $rbc_file->makeValidString(strtoupper($form_state['values']['direct_debit_rbc_reference_text']), 0, 54);
+
+}
+
+/**
+ * Save the settings form and proceed indicated actions
+ */
+function direct_debit_admin_settings_form_submit($form, &$form_state) {
+  if (!direct_debit_admin_settings_general_submit($form, $form_state)) {
+    drupal_set_message(t('An error occurred while submitting the form. Please check your input values and try again. If this error persists, please contact the site administrator.'));
+    
+    return;
+  }
+   
+  if ($op == t('Reset to defaults')) {
+    drupal_set_message(t('The configuration options have been reset to their default values.'));
+  }
+  else {
+    // correct the variables that needs a different treatment as in general_submit
+    variable_set('direct_debit_admin_receipt_header', $form_state['values']['direct_debit_admin_receipt_header']);
+    variable_set('direct_debit_admin_receipt_footer', $form_state['values']['direct_debit_admin_receipt_footer']);
+    drupal_set_message(t('The configuration options have been saved.'));
+  }
+  
+}
+
+/**
+ * General submit function
+ *
+ * @see direct_debit_admin_settings_form_submit
+ * @see direct_debit_admin_setings_update_form_submit
+ */
+function direct_debit_admin_settings_general_submit($form, &$form_state) {
+  /** copied from system_settings_form_submit **/
+  $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
+
+  // Exclude unnecessary elements.
+  unset($form_state['values']['submit'], $form_state['values']['reset'], $form_state['values']['form_id'], $form_state['values']['op'], $form_state['values']['form_token'], $form_state['values']['form_build_id']);
+
+  foreach ($form_state['values'] as $key => $value) {
+    if ($op == t('Reset to defaults')) {
+      variable_del($key);
+    }
+    else {
+      if (is_array($value) && isset($form_state['values']['array_filter'])) {
+        $value = array_keys(array_filter($value));
+      }
+      variable_set($key, $value);
+    }
+  }
+  
+  /** end copied from system_settings_form_submit **/
+  
+  return TRUE;
+}
+
+/**
+ * Validates a given Bank Identification Number.
+ *
+ * @param string $bank_identification_number teh given Bank Identification Number
+ * @return boolean TRUE if valid, otherwise FALSE
+ */
+function direct_debit_dta_bank_identification_number_validate($bank_identification_number) {
+  // $result = db_result(db_query("SELECT COUNT(*) FROM {direct_debit_bank_identification_numbers} WHERE bank_identification_number = '%s'", $bank_identification_number));
+  
+  // if (!$result) {
+  //   return FALSE;
+  // }
+  return TRUE;
+}
+
+/**
+ * receive the direct debit data and process it
+ *
+ * @param array $input_data received (raw) data
+ * @return boolean: true, if there are no errors; otherwise false
+ */
+function direct_debit_pp_do_payment($input_data, $mode = 'test') {
+  $data = array();
+  $error = array();
+  $result = array();
+  
+  // validate data (have we received all required data?; is the data valid? )
+  if (!direct_debit_pp_validate_data($input_data, $data, $error)) {
+    return array('error' => $error);
+  }
+
+  // create and check hash to prevent multiple submitting of the same contribution
+  $hash = direct_debit_pp_hash($data, $error);
+  
+  if (!$hash) {
+    return array('error' => $error);
+  }
+  
+  // append hash to data array to store it later in the database
+  $data['hash'] = $hash;
+  // set receive_date to current date 
+  $data['receive_date'] = time();
+  // set contribution status to pending
+  $data['contribution_status_id'] = 5;
+  // set billing to 1 if donator wants a bill otherwise 0
+  $data['billing_type'] = 0;
+  
+  if ('live' != $mode) {
+    // we are in test mode ... so we don't store the payment data
+    $result['trxn_result_code'] = 'OK';
+    $result['trxn_id']          = 'Test'. md5(uniqid(rand(), TRUE));
+    $result['gross_amount']     = $data['amount'];
+    return $result;
+  }
+
+  // **proceed only in live mode (not in test)**
+  
+  // store data in database
+  if (!direct_debit_pp_store_data($data, $error)) {
+    return array('error' => $error);
+  }
+  
+  // get last insert ID
+  $last_insert_id = db_last_insert_id('direct_debit', 'did');
+  if (!$last_insert_id) {
+    watchdog('direct debit', "Error code: 'unknown did'.", array(), WATCHDOG_ERROR);
+    return $error['did'] = array('code' => 'unknown did');  // Paranoia - in the unlikley case we don't receive the did
+  }
+
+  // trxn_id in civicrm needs to bee unique so we create one like: DD{did}xxx where xxx is a random code
+  $trxn_id =  'DD'. $last_insert_id . strtoupper(substr(md5(uniqid(rand(), TRUE)), 0, 3));
+  
+  if (!db_query("UPDATE {direct_debit} SET trxn_id = '%s' WHERE did = %d", $trxn_id, $last_insert_id)) {
+    watchdog('direct debit', "Error code: 'failed to create trxn_id'.", array(), WATCHDOG_ERROR);
+    return $error['trxn_id'] = array('code' => 'failed to create trxn_id');
+  }
+
+  // return error
+  if (!empty($error)) {
+    return array('error' => $error);
+  }
+  
+  $result['trxn_id'] = $trxn_id;
+  $result['trxn_result_code'] = 'OK';
+  $result['gross_amount']     = $data['amount'];
+  
+  return $result;
+}
+
+/**
+ * returns the fields for the relevant input_data we want to store (see table {direct_debit})
+ *
+ * @return array $data array tat describes the data structure
+ */
+function direct_debit_pp_data_array() {
+  $data = array(
+    'payment_action'            => '',
+    'amount'                    => '',
+    'account_holder'            => '',
+    'bank_account_number'       => '',
+    'bank_identification_number'=> '',
+    'bank_name'                 => '',
+    'contribution_type'         => '',
+    'contribution_page_id'      => '',
+    'contribution_description'  => '',
+    'currency_id'               => '',
+    'invoice_id'                => '',
+    'ip_address'                => '',
+    'organization_name'         => '',
+    'first_name'                => '',
+    'last_name'                 => '',
+    'email'                     => '',
+    'street'                    => '',
+    'city'                      => '',
+    'state_province'            => '',
+    'country'                   => '',
+    'postal_code'               => '',
+    'form_id'                   => '',
+    'hash'                      => '',
+  );
+  return $data;
+}
+
+/**
+ * validates the data needed for direct debit transactions
+ *
+ * @param array $input_data received raw data
+ * @param array $data validated data
+ * @param array $error detailed error descriptions for each field
+ * @return boolean: true, if there are no errors; otherwise false
+ */
+function direct_debit_pp_validate_data($input_data, &$data, &$error) {
+  $data = direct_debit_pp_data_array();
+  
+  foreach ($data as $key => $value) {
+    if ('amount'            == $key
+        || 'currency_id'    == $key
+        || 'invoice_id'     == $key
+        || 'ip_address'     == $key
+        || 'first_name'     == $key
+        || 'last_name'      == $key
+        || 'account_holder' == $key
+        || 'street'         == $key
+        || 'city'           == $key
+        || 'country'        == $key
+        || 'postal_code'    == $key
+        || 'form_id'        == $key) {
+      // data for all the above cases is required and shouldn't be empty 
+      if (empty($input_data[$key])) {
+          $error[$key] = array('code' => 'field required');
+          watchdog('direct debit', "Error code: 'field required' for field: @field.", array('@field' => $key), WATCHDOG_ERROR);
+      }
+    } else if ('email' == $key) {
+      // Verify the syntax of the given e-mail address.
+      if (empty($input_data['email'])) {
+        $error['email'] = array('code' => 'field required');
+        watchdog('direct debit', "Error code: 'field required' for field: email.", array(), WATCHDOG_ERROR);
+      } else if (!valid_email_address($input_data['email'])) {
+        $error['email'] = array('code' => 'invalid data');
+        watchdog('direct debit', "Error code: 'invalid data' for field: email.", array(), WATCHDOG_ERROR);
+      }
+    } else if ('bank_account_number' == $key) {
+      if (empty($input_data['bank_account_number']) || !direct_debit_valid_bank_account_number($input_data['bank_account_number'])) {
+        $error['bank_account_number'] = array('code' => 'invalid data',
+                                              'message' => 'bank_account_number');
+        watchdog('direct debit', "Error code: 'invalid data' for field: bank_account_number.", array(), WATCHDOG_ERROR);
+      }
+    } else if ('bank_identification_number' == $key) {
+      if (empty($input_data['bank_identification_number']) || !direct_debit_valid_bank_identification_number($input_data['bank_identification_number'])) {
+        $error['bank_identification_number'] = array('code' => 'invalid data',
+                                                     'message' => 'bank_identification_number');
+        watchdog('direct debit', "Error code: 'invalid data' for field: bank_identification_number.", array(), WATCHDOG_ERROR);
+      }
+    } else if ('bank_name' == $key) {
+      if (empty($input_data['bank_name']) || !direct_debit_valid_bank_name($input_data['bank_name'])) {
+        $error['bank_name'] = array('code' => 'invalid data',
+                                    'message' => 'bank_name');
+        watchdog('direct debit', "Error code: 'invalid data' for field bank_name.", array(), WATCHDOG_ERROR);
+      }
+    }
+  } // end foreach
+  if (!empty($error)) {
+    return FALSE;
+  }
+  
+  foreach ($data as $key => $value) {
+     if (isset($input_data[$key])) {
+      $data[$key] = $input_data[$key];
+    }
+  }
+  return TRUE;
+}
+
+/**
+ * create md5 hash over data fields and check if its already registered in the database
+ * 
+ * This function should prevent to register the same direct debit transaction multiple times.
+ *
+ * @param array $data 
+ * @return void
+ */
+function direct_debit_pp_hash($data, &$error) {
+  $str_data = implode(",", $data);
+  
+  $hash = hash("md5", $str_data);
+
+  // check if hash already exist
+  $result = db_result(db_query("SELECT COUNT(*) FROM {direct_debit} WHERE hash = '%s'", $hash));
+
+  if (0 != $result) {
+    $error['hash'] = array('code' => 'data exists');
+    watchdog('direct debit', "Error code: 'data exists'.", array(), WATCHDOG_ERROR);
+    return FALSE;
+  }
+
+  return $hash;
+}
+
+function direct_debit_valid_bank_account_number($ban) {
+  if (10 < strlen($ban) || !preg_match('%^\d*$%', $ban)) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+function direct_debit_valid_bank_identification_number($bin) {
+  if (8 != strlen($bin) || !is_numeric($bin) || !direct_debit_dta_bank_identification_number_validate($bin)) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+function direct_debit_valid_bank_name($bank) {
+  if ('invalid' == $bank) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/**
+ * store the direct debit data in the database
+ *
+ * @param string $data 
+ * @return void
+ */
+function direct_debit_pp_store_data($data, &$error) {
+  
+  $schema = drupal_get_schema('direct_debit');
+  
+  $query_vars = '';
+  $query_placeholder = '';
+  $query_data = array();
+  
+  // for the structure of data see direct_debit_pp_data_array()
+  foreach ($data as $key => $value) {
+    if (!empty($query_vars)) {
+      $query_vars .= ', ';
+      $query_placeholder .= ', ';
+    }
+    $query_vars .= $key;
+    $query_placeholder .= db_type_placeholder($schema['fields'][$key]['type']);
+    $query_data[] = $data[$key];
+  }
+  
+  $query = 'INSERT INTO {direct_debit} (' .$query_vars. ') VALUES (' .$query_placeholder. ')';
+  $result = db_query($query, $query_data);
+
+  if (!$result) {
+    $error['store_data'] = array('code' => 'failed to insert data');
+    watchdog('direct debit', "Error code: 'failed to insert data'.", array(), WATCHDOG_ERROR);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/**
+ * Menu callback; present an administrative direct_debit listing.
+ */
+function direct_debit_admin() {
+  $output = '';
+
+  // show update notifier
+  $date = variable_get('direct_debit_update_expiration', '');
+  if (is_array($date) && variable_get('direct_debit_update_notification', FALSE)) {
+    $timestamp = mktime(date("H"), date("i"), date("s"), $date['month'], $date['day'], $date['year']);
+    if (time() > ($timestamp - 86400 * 7) && time() < $timestamp) {
+      drupal_set_message(t('Reminder: Don\'t forget to update the Bank Identification Numbers at @date. Go to <a href="@dd_settings_url">Administer > Settings > Direct Debit</a> to perform the update.', array('@date' => format_date($timestamp, 'small'), '@dd_settings_url' => url('admin/settings/direct_debit'))), 'warning', FALSE);
+    } else if(time() >= $timestamp) {
+      drupal_set_message(t('Warning: The Bank Identification Numbers are out-of-date since @date. Go to <a href="@dd_settings_url">Administer > Settings > Direct Debit</a> to perform the update.', array('@date' => format_date($timestamp, 'small'), '@dd_settings_url' => url('admin/settings/direct_debit'))), 'warning', FALSE);
+    }
+  }
+  
+//  $output .= drupal_get_form('direct_debit_admin_filter_form');
+  
+  $output = drupal_get_form('direct_debit_admin_overview');
+  
+  return $output;
+}
+
+/**
+ * Form builder; Builds the direct debit overview form for the admin.
+ *
+ * @return
+ *   The form structure.
+ * @ingroup forms
+ * @see direct_debit_admin_overview_validate()
+ * @see direct_debit_admin_overview_submit()
+ * @see theme_direct_debit_admin_overview()
+ */
+function direct_debit_admin_overview() {
+  global $base_url;
+  $form = array();
+  $form['dta'] = array(
+                       '#type' => 'fieldset', '#title' => t('Export RBC Data'),
+                       );
+  $form['dta']['test_export_button'] = array( '#type' => 'submit',
+                                              '#value' => t('Trial Reconciliation'),
+                                              '#submit' => array('direct_debit_admin_overview_submit'),
+                                              );
+  $form['dta']['create_rbc_button']  = array(
+                                            '#type' => 'submit',
+                                            '#value' => t('Export RBC Data'),
+                                            '#prefix' => '<div class="create_rbc">',
+                                            '#suffix' => '</div> <div class="description">Creates a RBC File using all new contributions. The Contribution Status will be updated from "in progress" to "completed". This button is only enabled if new contributions available. </div> Details of previous exports are available by viewing the previous <a href='.$base_url.'/civicrm/report/instance/33?reset=1 >RBC Export Activities</a>.',
+                                            '#submit' => array('direct_debit_admin_overview_submit'),
+                                            );
+
+  // check if there is a RBC.php and if there are any pending contributions
+  if (!direct_debit_admin_require_once_rbc(FALSE)) {
+    // if no dta or no pending contributions disable button
+    $form['dta']['create_rbc_button']['#disabled'] = TRUE;
+    $form['dta']['create_rbc_button']['#attributes'] = array('class' => 'error');
+    drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => url('admin/settings/direct_debit'))), 'error', FALSE);
+  } else if (!direct_debit_admin_count_inprogress_contributions() || isAlreadyExported() ) {
+    $form['dta']['test_export_button']['#disabled'] = TRUE;
+    $form['dta']['create_rbc_button']['#disabled'] = TRUE;
+  }
+
+  // build an 'Update options' form
+  // $form['options'] = array(
+  //                          '#type' => 'fieldset', 
+  //                          '#title' => t('Update options'),
+  //                          );
+  
+  // $options = direct_debit_get_contribution_status();
+  
+  // $form['options']['update'] = array(
+  //                                    '#prefix' => '<div class="container-inline">', 
+  //                                    '#suffix' => '</div>',
+  //                                    );
+
+    
+  // $form['options']['update']['update_operation'] = array(
+  //                                                        '#type' => 'select', 
+  //                                                        '#options' => $options, 
+  //                                                        '#default_value' => '',
+  //                                                        '#prefix' => t('Set status to: '),
+  //                                                        );
+  
+  // $form['options']['update']['submit'] = array(
+  //                                              '#type' => 'submit',
+  //                                              '#value' => t('Update'),
+  //                                              '#submit' => array('direct_debit_admin_overview_submit'),
+  //                                              );
+  
+  $form = array_merge($form, direct_debit_admin_filter_form());
+  
+  $form['overview'] = array(
+                            '#type' => 'fieldset', 
+                            '#title' => t('Contribution Overview'),
+                            '#theme' => 'direct_debit_admin_overview_table',
+                            );
+ 
+  // fields of interest
+  $data_fields = direct_debit_admin_data_fields();
+
+  // sortable table header
+  $header = array( theme('table_select_header_cell') );
+    
+  $str_data_fields = '';
+  foreach ($data_fields as $key => $db_field) {
+    $str_data_fields .= ', '. $key;
+    
+    if ('currency_id' == $key) {
+      continue;
+    }
+    $header[$key] = array(
+                          'data' => $data_fields[$key], 
+                          'field' => $key,
+                          );
+  }
+
+  $header['id']['sort'] = 'desc';
+  $header['activity'] = array( 'data' => 'Activity' ); 
+  $header['billing'] = array( 'data' => 'Receipt' );
+ 
+  
+  $str_data_fields = ltrim($str_data_fields, ', ');
+
+  // get data to fill table
+  $filter = direct_debit_admin_build_filter_query();
+  $args = array($str_data_fields);
+  $args = array_merge($args,  $filter['args']);
+  $customForm = null;
+  require_once "CRM/Core/BAO/CustomGroup.php";
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contribution', $customForm, null, 2 );
+  $accountDetails = getAccountColumns();
+  $rbcDetails     = getRBCColumns();
+
+  foreach( $accountDetails['columns'] as $tableKey => $tableValue  ){
+    $customColumns[] = $tableValue;
+  }
+  $query = db_select('civicrm_contribution' , 'c')->extend('PagerDefault')->extend('TableSort')->orderByHeader($header);
+
+  $query->join( 'civicrm_contact', 'cc', 'c.contact_id = cc.id' );
+  $query->leftjoin( $accountDetails[ 'table' ], 'ad', 'c.id = ad.entity_id' );
+  $query->leftjoin( $rbcDetails[ 'table' ], 'rbc', 'c.id = rbc.entity_id' );
+  $query->fields( 'c', array(  'id', 'receive_date', 'total_amount', 'currency', 'contribution_status_id'));
+  $query->fields( 'cc', array( 'display_name', 'id' ) );
+  $query->fields( 'ad', $customColumns );
+  $query->fields( 'rbc', array( $rbcDetails['columns']['activity'], $rbcDetails['columns']['test'] ) );
+  $query->condition('c.payment_instrument_id', 6, '=' );
+  $or = db_or();
+  foreach( $filter[ 'args' ] as $argKey => $argValue ){
+    $or->condition( $filter[ 'where' ][ $argKey ], $argValue, $filter[ 'operator' ][ $argKey ] );
+  }
+  if( $filter[ 'args' ] ){
+    $query->condition($or);
+  }
+  $result = $query->execute();
+  foreach( $result as $row ){
+    // amount and currency_id should appear in one column
+    $row->total_amount .= ' ' .$row->currency;
+    unset( $row->cc_type_31 );
+    unset( $row->currency );
+   
+    // get the status to set the class for each row
+    $form['overview']['fields']['#attributes'][$row->id] = array('class' => direct_debit_get_contribution_status($row->contribution_status_id, FALSE, TRUE));
+    $row->receive_date = date('jS  F Y h:i:s A', strtotime( $row->receive_date ));
+    $row->contribution_status_id = direct_debit_get_contribution_status($row->contribution_status_id, TRUE, TRUE);
+    if( property_exists( $row, $rbcDetails['columns']['test'] ) ) {
+        unset($row->$rbcDetails['columns']['test'] );
+    }
+    if( $row->$rbcDetails['columns']['activity'] ){
+        if( property_exists( $row, $rbcDetails['columns']['test'] ) && $row->$rbcDetails['columns']['test'] == 1 ){
+            $activityTypeId = TEST_EXPORT_RBC_ACTIVITY_TYPE_ID;
+        } else {
+            $activityTypeId = EXPORT_RBC_ACTIVITY_TYPE_ID;
+        }
+      $row->$rbcDetails['columns']['activity'] = "<a href=".CRM_Utils_System::url( 'civicrm/activity', 'reset=1&atype='. $activityTypeId .'&action=view&id='.$row->$rbcDetails['columns']['activity'] .'&cid='.$row->cc_id).">Activity</a>" ;
+    }
+    $row->billing = l(t('receipt'), 'direct_debit/receipt/'. $row->id, array('attributes' => array('target' => 'blank')));
+    // build a table listing the transactions
+    foreach ($row as $key => $value) {
+      if( $key != 'cc_id' ){
+        $transactions[$row->id] = '';
+        if('id' == $key) {
+          $link = "<a href=".CRM_Utils_System::url('civicrm/contact/view/contribution','reset=1&id='. $row->id.'&&action=view&cid='.$row->cc_id).">{$row->id}</a>";
+          $form['overview']['fields'][$key][$row->id] = array('#markup' => $link);
+        } else if ('billing' == $key) {
+          $form['overview']['fields'][$key][$row->id] = array('#markup' => $row->$key);
+        } else {
+          // the other fields are just plain text
+          $form['overview']['fields'][$key][$row->id] = array('#markup' => $row->$key);
+        }
+      }
+    }
+  }
+  $form['overview']['header'] = array(
+                                      '#type' => 'value', 
+                                      '#value' => $header,
+                                      );
+  
+  $form['overview']['check_tx'] = array('#type' => 'checkboxes', '#options' => isset($transactions) ? $transactions: array());
+  return $form;
+}
+
+/**
+ * Get the contribution stats array or name
+ *
+ * @param mixed $key id of the status (contribution_status_id) which name we want to get or the value which id we want to get
+ * @param boolean $translation: TRUE if we want the localized status, False if we want it without localization
+ * @param boolean $include_all: TRUE if status pending and in_progress will be included otherwise FALSE
+ * @return mixed: by given id: the name of a status otherwise an array of all status with its ids
+ */
+function direct_debit_get_contribution_status($key = NULL, $translation = TRUE, $include_all=FALSE) {
+  
+  // status corresponds to the CiviCRM status
+  $status = array(
+    '1' => ($translation ? t('completed')   : 'completed'  ),
+    '3' => ($translation ? t('canceled')   : 'canceled'  ),
+    '4' => ($translation ? t('failed')      : 'failed'     ),
+  );
+  
+  if ($include_all) {
+    $status[2] = ($translation ? t('pending')     : 'pending'    );
+    $status[5] = ($translation ? t('in progress') : 'in_progress');
+  }
+  
+  if (!isset($key)) {
+    // we want the whole array
+    return $status;
+  } else if (is_numeric($key) && array_key_exists($key, $status)) {
+    // we want the status by given id
+      return $status[$key];
+  } else if (!is_numeric($key)){
+    return array_search($key, $status);
+  } else {
+    return FALSE;
+  }
+}
+
+/**
+ * Get the contribution_status_id by given status value
+ *
+ * @param string $status the verbal status value for what we want the id
+ * @param string $translation if we want to look for a localized status value we have to set translation to TRUE
+ * @return void
+ */
+function direct_debit_get_contribution_status_id($status, $translation = FALSE) {
+  return (direct_debit_get_contribution_status($status, $translation, TRUE));
+}
+
+/**
+ * Validate direct_debit_admin_overview form submissions.
+ *
+ * We can't execute any 'Update options' if no direct debit transactions were selected.
+ */
+function direct_debit_admin_overview_validate($form, &$form_state) {
+  // $form_state['values']['comments'] = array_diff($form_state['values']['comments'], array(0));
+  // if (count($form_state['values']['comments']) == 0) {
+  //   form_set_error('', t('Please select one or more comments to perform the update on.'));
+  //   drupal_goto('admin/content/comment');
+  // }
+}
+
+/**
+ * Process direct_debit_admin_overview form submissions.
+ *
+ * Execute the chosen 'Update option' on the selected direct debit transactions.
+ */
+function direct_debit_admin_overview_submit($form, &$form_state) {
+  //get current users contact id
+  $cid      = $_SESSION[ 'CiviCRM' ]['userID'];
+  $exeTime  = null;
+  $memLimit = null;
+  switch ($form_state['values']['op']) {
+    case t('Trial Reconciliation'):
+      require_once 'CRM/Core/BAO/Dashboard.php';
+      CRM_Core_BAO_Dashboard::resetDashletCache();
+      $activityId = direct_debit_admin_create_rbc_and_update_status( 'test' );
+      $url = CRM_Utils_System::url( "civicrm/activity", "atype=". TEST_EXPORT_RBC_ACTIVITY_TYPE_ID ."&action=view&reset=1&id={$activityId}&cid=1" );
+      if ( $activityId ) {
+        //redirect to newly created activity view
+        drupal_goto( "civicrm/activity?atype=". TEST_EXPORT_RBC_ACTIVITY_TYPE_ID ."&action=view&reset=1&id={$activityId}&cid={$cid}" );
+      }
+      break;
+    case t('Export RBC Data'):
+      require_once 'CRM/Core/BAO/Dashboard.php';
+      CRM_Core_BAO_Dashboard::resetDashletCache();
+      $exeTime  = ini_get( 'max_execution_time' );
+      $memLimit = ini_get( 'memory_limit' );
+      ini_set('max_execution_time', MAX_EXECUTION_TIME );
+      ini_set( 'memory_limit', MEMORY_LIMIT );
+      $activityId = direct_debit_admin_create_rbc_and_update_status();
+      if ( $activityId ) {
+        //redirect to newly created activity view
+        drupal_goto( "civicrm/activity?atype=". EXPORT_RBC_ACTIVITY_TYPE_ID ."&action=view&reset=1&id={$activityId}&cid={$cid}" );
+      }
+      break;
+    case t('Update'):
+      $status = $form_state['values']['update_operation'];
+      $checked_tx = array();
+      $count = 0;
+      foreach ($form_state['values']['check_tx'] as $key => $value) {
+        if ('0' != $value) {
+          $checked_tx[] = $key;
+          $count++;
+        }
+      }
+      
+      // $checked_tx will be empty if no contribution was checked
+      if (empty($checked_tx)) {
+        drupal_set_message(t('You have to select at least one contribution to perform an update action.'), 'error');
+        return;
+      }
+      
+      $result = direct_debit_admin_update_status($form_state['values']['update_operation'], $checked_tx);
+      
+      // additional advice contribution status complete
+      $advice = '';
+      if (1 == $status) {
+        $advice = ' '. t('Please make sure that you have proceeded these contributions correctly: they need to have the <em>in progress</em> state.');
+      }
+    
+      $details = direct_debit_admin_update_status_error_details($array);
+    
+      if (empty($result)) {
+        drupal_set_message(t('The selected contributions could not be updated.'), 'error');
+      } else {
+        if (!empty($result['success'])) {
+          // we have (some) successful updates 
+          drupal_set_message(t('@count of @n selected contributions where updated successfully to status <em>@status</em>. A confirmation mail was send. !details',
+            array('@count' => count($result['success']),
+                  '@n' => $count,
+                  '@status' => direct_debit_get_contribution_status($status),
+                  '!details' => 
+                    '<fieldset class="collapsible collapsed">'.
+                      '<legend>'. t('See affected transactions') .'</legend>'.
+                      direct_debit_admin_update_status_error_details($result['success']).
+                    '</fieldset>',
+          )));
+        }
+        
+        if (!empty($result['errors']) && !empty($result['errors']['direct_debit'])) {
+          drupal_set_message(t('@count of @n selected contributions could not be updated to <em>@status</em>.!advice !details',
+            array('@count' => count($result['errors']['direct_debit']),
+                  '@n' => $count,
+                  '@status' => direct_debit_get_contribution_status($status),
+                  '!advice' => $advice,
+                  '!details' => 
+                    '<fieldset class="collapsible collapsed">'.
+                      '<legend>'. t('See affected transactions') .'</legend>'.
+                      direct_debit_admin_update_status_error_details($result['errors']['direct_debit']).
+                    '</fieldset>',
+          )), 'error');
+        }
+        
+        if (!empty($result['errors']) && !empty($result['errors']['civicrm'])) {
+          drupal_set_message(t('@count of @n selected contributions where updated to <em>@status</em>, but we could not update their status in CiviCRM. !details',
+            array('@count' => count($result['errors']['civicrm']),
+                  '@n' => $count,
+                  '@status' => direct_debit_get_contribution_status($status),
+                  '!details' => 
+                    '<fieldset class="collapsible collapsed">'.
+                      '<legend>'. t('See affected transactions') .'</legend>'.
+                      direct_debit_admin_update_status_error_details($result['errors']['civicrm']).
+                    '</fieldset>',
+          )), 'error');
+        }
+        
+        if (!empty($result['errors']) && !empty($result['errors']['mail'])) {
+          drupal_set_message(t('@count of @n selected contributions where updated to <em>@status</em> successfully, but there was no confirmation mail sent to their contributors. !details',
+            array('@count' => count($result['errors']['mail']),
+                  '@n' => $count,
+                  '@status' => direct_debit_get_contribution_status($status),
+                  '!details' => 
+                    '<fieldset class="collapsible collapsed">'.
+                      '<legend>'. t('See affected transactions') .'</legend>'.
+                      direct_debit_admin_update_status_error_details($result['errors']['mail']).
+                    '</fieldset>',
+          )), 'warning');
+        }
+        
+      }
+      break;
+  }// end switch
+  if( $exeTime ) {
+      ini_set( 'max_execution_time', $exeTime ); 
+  }
+  if( $memLimit ){
+      ini_set( 'memory_limit', $memLimit ); 
+  }
+}
+
+function direct_debit_cron() { 
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/Dashboard.php';
+  CRM_Core_BAO_Dashboard::resetDashletCache();
+  $exeTime  = ini_get( 'max_execution_time' );
+  $memLimit = ini_get( 'memory_limit' );
+  ini_set('max_execution_time', MAX_EXECUTION_TIME );
+  ini_set( 'memory_limit', MEMORY_LIMIT );
+  //$activityId = direct_debit_admin_create_rbc_and_update_status();
+  if ( $activityId ) {
+    //redirect to newly created activity view
+    drupal_goto( "civicrm/activity?atype=". EXPORT_RBC_ACTIVITY_TYPE_ID ."&action=view&reset=1&id={$activityId}&cid={$cid}" );
+  }
+}
+
+/**
+ * build a string with links to detail pages for showing in error messages
+ *
+ * @param array $array 
+ * @return string
+ */
+function direct_debit_admin_update_status_error_details($array) {
+  
+  if (empty($array)) {
+    return '';
+  }
+
+  $details = '';  
+  foreach ($array as $key => $value) {
+    $details .= empty($details)? '' : ', ';
+    $details .= l($value, 'direct_debit/details/'. $value, array('attributes' => array('target' => 'blank')));
+  }
+  
+  return '<p>'. $details .'</p>';
+}
+
+/**
+ * Theme the direct debit admin form.
+ *
+ * @param $form
+ *   An associative array containing the structure of the form.
+ * @ingroup themeable
+ */
+function theme_direct_debit_admin_overview($form) {
+  drupal_add_css(drupal_get_path('module', 'direct_debit') .'/direct_debit.css');
+}
+
+function theme_direct_debit_admin_overview_table($form) {
+  $rows = array();
+  $form = current($form);
+
+  if (isset($form['fields']['id']) && is_array($form['fields']['id'])) {
+    foreach (element_children($form['fields']['id']) as $tx) {
+      $row = array('data' => '');
+      $row['data'][] = drupal_render($form['check_tx'][$tx]);
+      foreach (element_children($form['fields']) as $key) {
+        $row['data'][] = drupal_render($form['fields'][$key][$tx]);
+        $row['no_striping'] = true;
+      }
+      if (is_array($form['fields']['#attributes'][$tx])) {
+        foreach ($form['fields']['#attributes'][$tx] as $attribute => $value) {
+          $row[$attribute] = $value;
+        }
+      }
+      
+      $rows[] = $row;
+    }
+  }
+  else {
+    $rows[] = array(array('data' => t('No transactions available.'), 'colspan' => '13'));
+  }
+  //$form['#children'] = ..
+  
+  $variables[ 'header' ]       = $form['header']['#value'];
+  $variables[ 'rows' ]         = $rows;
+  $variables[ 'attributes' ]   = array();
+  $variables[ 'caption' ]      = null;
+  $variables[ 'colgroups' ]    = array();
+  $variables[ 'sticky' ]       = array();
+  $variables[ 'empty' ]        = array();
+  $output = theme_table($variables);
+  $output .= theme('pager');
+  // if ($form['pager']['#value']) {
+  //   $output .= drupal_render($form['pager']);
+  // }
+  
+  return $output;
+
+}
+
+/**
+ * List direct_debit administration filters that can be applied.
+ * 
+ * inspired by (core) node module
+ */
+function direct_debit_admin_filters() {
+  // get al transaction status
+  $options = array();
+  $o = direct_debit_get_contribution_status(NULL, TRUE, TRUE);
+  foreach ($o as $key => $value) {
+    $options['contribution_status_id-'. $key] = $value;
+  }
+  $filters['contribution_status_id'] = array(
+    'title' => t('Status'),
+    'options' => $options,
+  );
+
+  return $filters;
+}
+
+/**
+ * Build query for direct_debit administration filters based on session.
+ * 
+ * inspired by (core) node module
+ */
+function direct_debit_admin_build_filter_query() {
+  $filters = direct_debit_admin_filters();
+  // Build query
+  $where = $args = array();
+  $join = '';
+
+  if (empty($_SESSION['direct_debit_overview_filter'])) {
+    return array('where' => $where, 'join' => $join, 'args' => $args);
+  }
+  
+  foreach ($_SESSION['direct_debit_overview_filter'] as $index => $filter) {
+    list($key, $value) = $filter;
+    switch ($key) {
+      case 'contribution_status_id':
+        // Note: no exploitable hole as $key/$value have already been checked when submitted
+        list($key, $value) = explode('-', $value, 2);
+        $where[] = $key;
+        $operator[] = '=';
+        break;
+    }
+    $args[] = $value;
+  }
+  return array('where' => $where, 'join' => $join, 'args' => $args, 'operator' => $operator);
+}
+
+
+/**
+ * Return form for direct_debit administration filters.
+ * 
+ * inspired by (core) node module
+ */
+function direct_debit_admin_filter_form() {
+  $session = &$_SESSION['direct_debit_overview_filter'];
+  $session = is_array($session) ? $session : array();
+  $filters = direct_debit_admin_filters();
+
+  $i = 0;
+  $form['filters'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Filter items'),
+    '#collapsible' => TRUE,
+    '#collapsed' => count($session)? FALSE : TRUE,
+    '#theme' => 'direct_debit_admin_filters',
+  );
+
+  foreach ($session as $filter) {
+    list($type, $value) = $filter;
+
+    $value = $filters[$type]['options'][$value];
+
+    if ($i++) {
+      $form['filters']['current'][] = array( '#type' => 'value' ,'#prefix' => t('<em>and</em> where <strong>%a</strong> is <strong>%b</strong>', array('%a' => $filters[$type]['title'], '%b' => $value)));
+    }
+    else {
+      $form['filters']['current'][] = array( '#type' => 'value', '#prefix' => t('<strong>%a</strong> is <strong>%b</strong>', array('%a' => $filters[$type]['title'], '%b' => $value)));
+    }
+  }
+
+  foreach ($filters as $key => $filter) {
+    $names[$key] = $filter['title'];
+    $form['filters']['status'][$key] = array('#type' => 'select', '#options' => $filter['options']);
+  }
+
+  $form['filters']['filter'] = array(
+    '#type' => 'radios',
+    '#options' => $names,
+    '#default_value' => 'contribution_status_id',
+  );
+
+  if (1 == count($filters)) {
+    $form['filters']['filter']['#attributes'] = array('class' => array('single_filter'));
+  }
+  $form['filters']['buttons']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => (count($session) ? t('Refine') : t('Filter')),
+    '#submit' => array('direct_debit_admin_filter_form_submit'),
+  );
+  if (count($session)) {
+    $form['filters']['buttons']['undo'] = array(
+      '#type' => 'submit',
+      '#value' => t('Undo'),
+      '#submit' => array('direct_debit_admin_filter_form_submit'),
+    );
+    $form['filters']['buttons']['reset'] = array(
+      '#type' => 'submit',
+      '#value' => t('Reset'),
+      '#submit' => array('direct_debit_admin_filter_form_submit'),
+    );
+  }
+
+  drupal_add_js('misc/form.js', 'core');
+  return $form;
+
+}
+
+/**
+ * Theme direct_debit administration filter selector.
+ * 
+ * inspired by (core) node module
+ *
+ * @ingroup themeable
+ */
+function theme_direct_debit_admin_filters($form) {
+  drupal_add_css(drupal_get_path('module', 'direct_debit') .'/direct_debit.css');
+
+  $form = current($form );
+  $output = '';
+  $output .= '<ul class="clear-block">';
+  $output .= t('Show only items where');
+  if (!empty($form['current'])) {
+    foreach (element_children($form['current']) as $key) {
+      $output .= '<li>'. drupal_render($form['current'][$key]) .'</li>';
+    }
+  }
+ 
+  $output .= '<li><dl class="multiselect">'. (!empty($form['current']) ? '<dt><em>'. t('and') .'</em> '. t('where') .'</dt>' : '') .'<dd class="a">';
+
+  foreach (element_children($form['filter']) as $key) {
+    $output .= drupal_render($form['filter'][$key]);
+  }
+  $output .= '</dd>';
+
+  $output .= '<dt>'. t('is') .'</dt><dd class="b">';
+
+  foreach (element_children($form['status']) as $key) {
+    $output .= drupal_render($form['status'][$key]);
+  }
+  $output .= '</dd>';
+
+  $output .= '</dl>';
+  $output .= '<div class="container-inline" id="direct_debit-admin-buttons">'. drupal_render($form['buttons']) .'</div>';
+  $output .= '</li></ul>';
+  return $output;
+}
+
+/**
+ * Process result from direct_debit administration filter form.
+ * 
+ * inspired by (core) node module
+ */
+function direct_debit_admin_filter_form_submit($form, &$form_state) {
+  $filters = direct_debit_admin_filters();
+  switch ($form_state['values']['op']) {
+    case t('Filter'):
+    case t('Refine'):
+      if (isset($form_state['values']['filter'])) {
+        $filter = $form_state['values']['filter'];
+
+        // Flatten the options array to accommodate hierarchical/nested options.
+        $flat_options = form_options_flatten($filters[$filter]['options']);
+
+        if (isset($flat_options[$form_state['values'][$filter]])) {
+          $_SESSION['direct_debit_overview_filter'][] = array($filter, $form_state['values'][$filter]);
+        }
+      }
+      break;
+    case t('Undo'):
+      array_pop($_SESSION['direct_debit_overview_filter']);
+      break;
+    case t('Reset'):
+      $_SESSION['direct_debit_overview_filter'] = array();
+      break;
+  }
+}
+
+/**
+ * Include Payment_RBC by require once
+ * 
+ * Offers a configurable way of the RBC.php file inclusion by using the user specified path
+ * or the include path.
+ * 
+ * If we pass the $file_path parameter we can use this function to check if the path exists and
+ * also to require once the RBC.php in $file_path. But the variable direct_debit_rbc_file_path won't be set/changed.
+ *
+ * @param boolean $require_once TRUE, for including the file, FALSE for just checking its presence  
+ * @param string $file_path set the path directly. If this parameter is set, we don't use the one from variable_get
+ * @return boolean TRUE if the RBC.php file was found, otherwise FALSE
+ */
+function direct_debit_admin_require_once_rbc($require_once = FALSE, $file_path='') {
+  if (class_exists('RBC')) {
+    return TRUE;
+  }
+
+  // get the stored direct_debit_rbc_file_path
+  $rbc_file = check_plain(variable_get('direct_debit_rbc_file_path', ''));
+  
+  // if $file_path is set, 
+  if (!empty($file_path)) {
+    // override the dta_file (recently got from stored direct_debit_rbc_file_path)
+    $rbc_file = $file_path;
+  }
+
+  // direct_debit_rbc_file_path is already configured or passed directly to the function
+  if (!empty($rbc_file)) {
+    $rbc_file .= '/RBC.php';
+    
+    if (!file_exists($rbc_file)) {
+      // bad configuration found: because the path was configured before but file isn't anymore in its place
+      return FALSE;
+    }
+    if ($require_once) {
+      require_once $rbc_file;
+      if(!class_exists('RBC')) {
+        return FALSE;
+      }
+    }
+    
+    return TRUE;
+  }
+  
+  // check if dta is in includepath
+  $paths = explode( PATH_SEPARATOR, get_include_path());
+  
+  foreach ($paths as $path) {
+    if (file_exists($path .'/Payment/RBC.php')) {
+      if ($require_once) {
+        require_once $path .'/Payment/RBC.php';
+      }
+      variable_set('direct_debit_rbc_file_path', $path .'/Payment');
+      return TRUE;
+    } else if (file_exists($path .'/RBC.php')) {
+      if ($require_once) {
+        require_once $path .'/RBC.php';
+      }
+      variable_set('direct_debit_rbc_file_path', $path);
+      return TRUE;
+    }
+  }
+  
+  // last chance: we check filepath/Payment/DTA.php
+  $rbc_file = file_build_uri( '/Payment/RBC.php' );
+  if (!file_exists($rbc_file)) {
+    return FALSE;
+  }
+  
+  if ($require_once) {
+    require_once $rbc_file;
+  }
+  
+  // we have found it so we set it for the next run
+  variable_set('direct_debit_rbc_file_path', file_build_uri('/Payment'));
+  return TRUE;
+}
+
+/**
+ * Helper function to convert a string to an array of lines with 27 characters
+ *
+ * @param DTA object $rbc_file
+ * @param string $string this string will converted in valid lines
+ * @param int $line_count max lines of the array to be returned if there are more lines they will get ignored
+ * @param int $length: Length of the valid string (standard 27)
+ * 
+ * @return array of valid strings
+ */
+function direct_debit_rbc_make_valid_lines ($rbc_file, $string, $line_count=NULL, $length = 27, $arrayIndex = null) {
+  $valid_strings = array();
+  
+  if($arrayIndex != 'customer_name') { 
+    $string = $rbc_file->makeValidString(strtoupper($string));
+  }
+  $string_array = str_split($string, $length);
+
+  
+  foreach ($string_array as $key => $value) {
+    // get max. first 3 lines a 27 characters of the description
+    if ($line_count && $line_count <= $key) {
+      break;
+    }
+    $value = trim($value);
+    if (!empty($value)) {
+      if( $arrayIndex ){
+        $valid_strings[$arrayIndex] = $value;
+      } else {
+        $valid_strings[][] = $value;
+      }
+    }      
+  }
+  
+  return $valid_strings;
+}
+
+/**
+ * Output the data as downloadable file
+ * 
+ * Inspired by file_transfer function (includes/file.inc, http://api.drupal.org/api/function/file_transfer/6)
+ *
+ * @param string $str_data 
+ * @param array $headers 
+ * @return void
+ */
+function direct_debit_download_send($str_data, $headers) {
+  if (ob_get_level()) {
+    ob_end_clean();
+  }
+  foreach ($headers as $header => $headerValue) {
+    // To prevent HTTP header injection, we delete new lines that are
+    // not followed by a space or a tab.
+    // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+    $header = preg_replace('/\r?\n(?!\t| )/', '', $header);
+      //    drupal_add_http_header($header);
+      drupal_add_http_header( $header, $headerValue );
+  }
+  
+  print $str_data;
+  exit;
+}
+
+/**
+ * Imports bank identification numbers from the german Bundesbank
+ * 
+ * inspired by spenden-mit-system: http://www.online-spendensysteme.de
+ *             spendenMitSystem/_include/verwaltungBLZ.inc.php
+ *             Claus Coviello, www.webseiten-mit-sinn.de
+ * 
+ *  
+ *   1-8    Bank Identification Number
+ *   9      Flag, if Bank has Bank Identification Number ("1") or not ("2")
+ *   10-67  Bank Name
+ * 
+ * @param    string $file filename with path of the import file
+ * @return   mixed: array with Bank Identification Data or FALSE in case of any error
+ * @access   private
+ */
+function direct_debit_dta_import_german_bank_identification_numbers($file) {
+  if (!$fp = @fopen($file, 'r')) {
+    drupal_set_message(t('Could not open uploaded file.'), 'error');
+    return FALSE;
+  }
+    
+  $line_count = 0;
+  while (!feof($fp)) {
+    $line = fgets($fp, 200); // at the moment the bundesbank file has 169 characters for each line
+    $line_count++;
+    
+    // test if data is utf-8
+    if (!drupal_validate_utf8($line)) {
+      $line = utf8_encode(trim($line));
+    }    
+    
+    if (empty($line)) {
+      continue; // read next line if line is empty
+    }
+    
+    // flag 1 means bank has bank identification number otherwise we do not want to import
+    if (substr($line, 8, 1) == '1') {
+      $bank_name = trim(substr($line, 9, 58));
+      $bank_identification_number = substr($line, 0, 8);
+
+      if (preg_match('/^\d{8}$/', $bank_identification_number) and preg_match('/\w{2,}/i', $bank_name)) {
+        $values .= (empty($values)? '' : ', ');
+        $values .= "('". db_escape_string(trim($bank_identification_number)) ."', '". db_escape_string(trim($bank_name)) ."')";
+      } else {
+        drupal_set_message(t('Could not import Bank Identification Numbers because the uploaded file has an error in line @line.', array('@line' => $line_count)));
+          return FALSE;
+      }
+    }
+  }
+  
+  // empty table
+  $result = db_query("TRUNCATE TABLE {direct_debit_bank_identification_numbers}");
+  if (!$result) {
+    watchdog('direct debit', 'An Error occurred while deleting data from the table <em>direct_debit_bank_identification_numbers</em>. The bank identification numbers may be incomplete.', array('@file' => $file), WATCHDOG_ERROR);
+    drupal_set_message(t('An Error occurred while importing file data into the database. The bank identification numbers may be incomplete. You need to import the data again or contact the site administrator.'));
+    return FALSE;
+  }
+  
+  // insert new data into table
+  $result = db_query("INSERT INTO {direct_debit_bank_identification_numbers} (bank_identification_number, bank_name) VALUES ". $values);
+  if (!$result) {
+    watchdog('direct debit', 'An Error occurred while importing file @file data into the database. The bank identification numbers may be incomplete.', array('@file' => $file), WATCHDOG_ERROR);
+    drupal_set_message(t('An Error occurred while importing file data into the database. The bank identification numbers may be incomplete. You need to import the data again or contact the site administrator.'));
+    return FALSE;
+  }
+  
+  return TRUE;
+}
+
+/**
+ * Count the pending contributions
+ *
+ * @return mixed: (int) count of contributions with transaction status == pending; (boolean) FALSE in case of error
+ */
+function direct_debit_admin_count_inprogress_contributions() {
+  // contribution_status_id 2 == pending
+  civicrm_initialize();
+  $contributionParams = array( 'version'                         => 3,
+                               'contribution_status_id'          => 5,
+                               'contribution_payment_instrument' => 6);
+  require_once 'api/api.php';
+  $contributionResult = civicrm_api( 'contribution','get',$contributionParams );
+  return $contributionResult[ 'count' ];
+}
+
+/**
+ * Describes fields that are interesting for the direct debit (detailed) overview
+ *
+ * @param boolean $extendet: FALSE, if we only want fields for overview; TRUE for fields in detailed view
+ * @return array which contains database names of fields and their names
+ */
+function direct_debit_admin_data_fields($arg = '') {
+  // fields of interest
+  $data_fields = array(
+    'id' => t('ID'),
+    'receive_date' => t('Received on'), // pending
+    'total_amount' => t('Amount'),
+    'contribution_status' => t('Status'),
+    'display_name' => t('Account Holder'),
+    'bank_name_2' => t('Bank #'),
+    'branch_5' => t('Branch #'),
+    'account_number_4' => t('Account #'),
+	);
+  
+  if ('details' == $arg) {
+	  $extension = array(
+      //'invoice_id'                => t(''),
+      'organization_name'         => t('Organization'),
+      'first_name'                => t('First Name'),
+  	  'last_name'                 => t('Last Name'),
+      'street'                    => t('Street'),
+      'postal_code'               => t('Post Code'),
+      'city'                      => t('City'),
+      'state_province'            => t('State / Province'),
+      'country'                   => t('Country'),
+      'ip_address'                => t('IP address'),
+      'email'                     => t('Email address'),
+      'contribution_type'         => t('Contribution Type'),
+      'contribution_page_id'      => t('Contribution Page ID'),
+      'contribution_description'  => t('Description'),
+      'confirmation_date'         => t('Confirmed on'), // completed
+      'cancel_date'               => t('Canceled on'), // canceled
+      'failed_date'               => t('Failed on'), // failed
+      'in_progress_date'          => t('Created DTA on'), // in progress
+      'confirmation_by_user'      => t('user'), // User who set status to completed
+      'cancel_by_user'            => t('user'), // User who set status to canceled
+      'failed_by_user'            => t('user'), // User who set status to failed
+      'in_progress_by_user'       => t('user'), // User who set status to in progress
+  	);
+    $data_fields = array_merge($data_fields,  $extension);
+  
+  }  
+
+  return $data_fields;
+}
+
+/**
+ * Build the detailed direct debit management view
+ *
+ * @param string $trxn_id 
+ * @return void
+ */
+function direct_debit_admin_details($trxn_id) {
+  $data_fields = direct_debit_admin_data_fields('details');
+  
+  foreach ($data_fields as $key => $field) {
+    $str_data_fields .= ', '. $key;
+  }
+  
+  $str_data_fields = ltrim($str_data_fields, ', ');
+  
+  $result = db_fetch_array(db_query("SELECT ". $str_data_fields ." FROM {direct_debit} WHERE trxn_id = '%s'", $trxn_id));
+  
+  if(empty($result)) {
+    return t('Could not find a contribution with transaction id @trxn_id.', array('@trxn_id' => $trxn_id));
+  }
+  
+  // get the names for country and state_province from iso code  
+  $result['state_province'] = direct_debit_get_country_state_province_name($result['country'], $result['state_province']);
+  $result['country'] = direct_debit_get_country_state_province_name($result['country']);
+  
+  $vars = array();
+  foreach ($data_fields as $key => $name) {
+    
+    if ('receive_date' == $key) {
+      // receive_date don't have a user who set this state (this was set by direct_debit_pp_do_payment)
+      $result[$key] = format_date($result[$key], 'small');
+      // add value to vars array for template
+      $vars[$key] = array('value' => check_plain($result[$key]), 'name' => $name);
+    } else if ('confirmation_date' == $key 
+    || 'cancel_date' == $key 
+    || 'failed_date' == $key 
+    || 'in_progress_date' == $key){
+      
+      if (empty($result[$key])) {
+        // if the status corresponding to this date was never set 
+        // (the date is 0) we don't want the date to appear in the form 
+        unset($result[$key]);
+        continue;
+      }
+      // otherwise it should show up with the user
+      $user_key = str_replace('_date', '_by_user', $key);
+      $result[$key] = format_date($result[$key], 'small') .' by '. $data_fields[$user_key] .': '. l(direct_debit_get_username($result[$user_key]), 'user/'. $result[$user_key]);
+      
+      // add value to vars array for template
+      $vars[$key] = array('value' => check_markup($result[$key]), 'name' => $name);
+      
+    } else if ('contribution_status_id' == $key) {
+      $result[$key] = direct_debit_get_contribution_status($result[$key], TRUE, TRUE);
+      // add value to vars array for template
+      $vars[$key] = array('value' => check_plain($result[$key]), 'name' => $name);
+    } else if ('confirmation_by_user' != $key
+    && 'cancel_by_user' != $key
+    && 'failed_by_user' != $key
+    && 'in_progress_by_user' != $key
+    && 'billing_type' != $key) {
+      // we don't want to proceed the user fields ... but all the others that were not added to $vars in the cases before
+      // add value to vars array for template
+      $vars[$key] = array('value' => check_plain($result[$key]), 'name' => $name);
+    }
+    
+  }
+  // add the receipt link to the vars array
+  $vars['billing']['name'] = t('Billing');
+  $vars['billing']['value'] = l(t('Download receipt'), 'direct_debit/receipt/'.$trxn_id, array('attributes' => array('target' => 'blank')));
+  
+  $output = theme('direct_debit_admin_details', $vars);
+  
+  return $output;
+}
+
+/**
+ * Get the user name by given uid
+ *
+ * @param int $uid user id to look for
+ * @return user name
+ */
+function direct_debit_get_username($uid) {
+  global $user;
+  
+  if ($uid == $user->uid) {
+    return $user->name;
+  }
+  
+  $name = db_result(db_query("SELECT name FROM {users} WHERE uid = %d", $uid));
+  
+  if (!$name) {
+    return t('unknown user');
+  }
+  
+  return $name;
+}
+
+/**
+ * Displays contribution details in table
+ *
+ * @ingroup themeable
+ * @param string $vars 
+ * @return void
+ */
+function theme_direct_debit_admin_details($vars) {
+  $data_fields = direct_debit_admin_data_fields('details');
+  // amount and currency_id should appear in one column
+  $vars['amount']['value'] .= ' ' .$vars['currency_id']['value'];
+  unset($vars['currency_id']);
+  
+  
+  $rows = array();
+  foreach ($vars as $key => $data) {
+    $row = array();
+    $row[0] = $data['name'];
+    $row[1] = $data['value'];
+    $rows[] = $row;
+  }
+
+  $output .= theme('table', NULL, $rows);
+
+    //$row['receive_date'] = format_date($row['receive_date'], 'small');
+  
+  return $output;
+
+} 
+
+/**
+ * Build receipt
+ *
+ * @param string $trxn_id 
+ * @return void
+ */
+function direct_debit_admin_receipt($trxn_id) {
+  global $language;
+    
+  // get contribution data
+  $data = db_fetch_array(db_query("SELECT organization_name, first_name, last_name, amount, currency_id, receive_date, street, postal_code, city
+                                   FROM {direct_debit}
+                                   WHERE trxn_id = '%s'", $trxn_id));
+
+  if (empty($data)) {
+    return t('Could not find a contribution with transaction id @trxn_id.', array('@trxn_id' => $trxn_id));
+  }
+  
+  // prepare variables for template
+  $vars = array();
+  
+  drupal_add_css(drupal_get_path('module', 'direct_debit') .'/direct_debit.css');
+  
+  $vars['html_head'] = drupal_get_html_head() . drupal_get_css() . drupal_get_js();
+  
+  
+  
+  $vars['language'] = $language;
+  $vars['header'] = str_replace("\n", "<br />", check_plain(variable_get('direct_debit_admin_receipt_header', '')));
+  $vars['title'] = check_plain(variable_get('direct_debit_admin_receipt_title', ''));
+  $vars['footer'] = str_replace("\n", "<br />", check_plain(variable_get('direct_debit_admin_receipt_footer', '')));
+  
+  $vars['issuer']['description'] = t('Name and Address of the issuer:');
+  $vars['issuer']['content']['name'] = check_plain(variable_get('direct_debit_admin_issuer_name', ''));
+  $vars['issuer']['content']['street'] = check_plain(variable_get('direct_debit_admin_issuer_street', ''));
+  $vars['issuer']['content']['city'] = check_plain(variable_get('direct_debit_admin_issuer_post_code', '') .' '. variable_get('direct_debit_admin_issuer_city', ''));
+  
+  $vars['contributor']['description'] = t('Name and Address of the contributor:');
+  $vars['contributor']['content']['organization_name'] = $data['organization_name'];
+  $vars['contributor']['content']['name'] = $data['first_name'] .' '. $data['last_name'];
+  $vars['contributor']['content']['street'] = $data['street'];
+  $vars['contributor']['content']['city'] = $data['postal_code'] .' '. $data['city'];
+    
+  $vars['amount_numeric']['description'] = t('Numeric value of contribution:');
+  $vars['amount_numeric']['content'] = $data['amount'] .' '. $data['currency_id'];
+  // $vars['amount_verbalized']['description']  = t('Numeric value of contribution');
+  // $vars['amount_verbalized']['content']
+  $vars['date']['description'] = t('Date of contribution:');
+
+  $vars['date']['content'] = format_date($data['receive_date'], 'small');
+
+  // create output by using template
+  $output = theme('direct_debit_admin_receipt', $vars);
+  
+  // build file headers
+  $headers = array();
+  
+
+  $headers[] = 'Content-Type: text/html; charset=utf-8';
+
+  $headers[] = 'Content-Length: '.strlen($output);
+
+  $str_file_name = 'receipt-'. $trxn_id .'.html';
+  $headers[] = 'Content-disposition: inline; filename="' . $str_file_name . '"';
+  
+  if (headers_sent()) {
+      drupal_set_message(t("Can't send file because of an internal error (Some data has already been send to the Web Browser). Please contact the site administrator."), 'error');
+      return FALSE;
+  }
+  
+  direct_debit_download_send($output, $headers);
+  
+  return;
+}
+
+
+function direct_debit_admin_preview_mail() {
+  // create output by using template
+  $output = direct_debit_admin_send_confirmation_mail('preview');
+  
+  // build file headers
+  $headers = array();
+  
+
+  $headers[] = 'Content-Type: text/plain; charset=utf-8';
+
+  $headers[] = 'Content-Length: '.strlen($output);
+
+  $str_file_name = 'preview_mail.txt';
+  
+  $headers[] = 'Content-disposition: inline; filename="' . $str_file_name . '"';
+  
+  if (headers_sent()) {
+      drupal_set_message(t("Can't send file because of an internal error (Some data has already been send to the Web Browser). Please contact the site administrator."), 'error');
+      return FALSE;
+  }
+  
+  direct_debit_download_send($output, $headers);
+}
+/**
+ * Show rbc file overview 
+ *
+ * On the top of this page we have the actual download (if rbc_id is provided)
+ * Under this overview we have the rbc archive with a pager
+ * 
+ * @param int $rbc_id id of the 
+ * @return void
+ */
+function direct_debit_rbc_overview($rbc_file_id = NULL) {
+  $rbcCustomDetails = getRBCColumns();
+  $download_link = null;
+  if ($rbc_file_id) {
+    $sql = " SELECT DISTINCT {$rbcCustomDetails[ 'columns' ][ 'date' ]} FROM {$rbcCustomDetails[ 'table' ]} where {$rbcCustomDetails[ 'columns' ][ 'rbc' ]} = $rbc_file_id ";
+    $result = CRM_Core_DAO::singleValueQuery( $sql );
+    $download_link = l(direct_debit_rbc_file_name( $result ), 'direct_debit/rbc/'. $rbc_file_id .'/download');
+  }
+  
+  // sortable table header
+  $header = array();
+  
+  $header[] = array(
+    'data' => t("RBC File"), 
+    'field' => $rbcCustomDetails[ 'columns' ][ 'rbc' ],
+  );
+  $header[] = array(
+    'data' => t("Date"), 
+    'field' => $rbcCustomDetails[ 'columns' ][ 'date' ],
+    'sort' => 'desc',  
+  );
+
+ 
+  // create rbc files overview
+  $query = db_select( $rbcCustomDetails[ 'table' ], 'rbc' )->extend('PagerDefault')->extend('TableSort')->orderByHeader($header);
+  $query->fields( 'rbc', $rbcCustomDetails['columns'] );
+  $query->distinct();
+  $query->condition( "rbc.{$rbcCustomDetails[ 'columns' ][ 'rbc' ]}", 0, '>' );
+  if( $rbc_file_id ){
+      $query->condition( "rbc.{$rbcCustomDetails[ 'columns' ][ 'rbc' ]}", $rbc_file_id, '!=' );
+  }
+  $result = $query->execute();
+
+  $rows = array();
+  $file_name = '';
+  foreach( $result as $row ){
+    $row = (array)$row;
+    $file_name = direct_debit_rbc_file_name($row[ $rbcCustomDetails[ 'columns' ][ 'date' ] ]);
+    $row[$rbcCustomDetails[ 'columns' ][ 'rbc' ]] = l($file_name, 'direct_debit/rbc/'. $row[ $rbcCustomDetails[ 'columns' ][ 'rbc' ] ] .'/download'); // format_date($row['in_progress_date'], 'custom', 'Y-m-d')
+    unset($row[$rbcCustomDetails[ 'columns' ][ 'activity' ]]);
+    $rows[] = $row;
+  }
+  
+
+  $output = theme('direct_debit_rbc_overview', array(
+    'download_link' => $download_link, 
+    'archive' => array(
+      'header'     => $header,
+      'rows'       => $rows,
+      'attributes' => array(),
+      'caption'    => null,
+      'colgroups'  => array(),
+      'sticky'     => array(),
+      'empty'      => array(),
+    ),
+  ));
+  
+  return $output;
+}
+
+function theme_direct_debit_rbc_overview($vars) {
+  drupal_add_js('misc/collapse.js');
+  
+  $output = '<div class="dta_overview">';
+  $collapsed = '';
+  if (!empty($vars['download_link'])) {
+    $output .= '<fieldset class="download_link">';
+    $output .= '<legend>'. t('Most recently created RBC file') .'</legend>';
+    $output .= '<br/><div>'. $vars['download_link'] .'</div>';
+    $output .= '</fieldset>';
+  }
+  
+  if(empty($vars['archive']['rows'])) {
+    $vars['archive']['rows'][] = array(array('data' => t('No RBC file available.'), 'colspan' => '2'));
+  }
+
+  $output .= '<fieldset class="download_archive collapsible">';
+  $output .= '<legend>'. t('Previous RBC export files') .'</legend>';
+  $output .= theme_table($vars['archive']);
+  $output .= theme('pager');
+  $output .= '</fieldset>';
+  $output .= '</div>';
+  return $output;
+}
+
+function getAccountColumns(){
+  $account_custom_group_id = 2;
+  $customForm = null;
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contribution', $customForm, null, $account_custom_group_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ){
+    if( strstr( $tableKey, 'bank_name_2' ) ){
+      $customColumn['bank'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['bank'] );
+      $customField['bank'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'branch_5' ) ){
+      $customColumn['branch'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['branch'] );
+      $customField['branch'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'account' ) ){
+      $customColumn['account'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['account'] );
+      $customField['account'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'type' ) ){
+      $customColumn['type'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['type'] );
+      $customField['type'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+function getOtherDetailsColumns( $contactID ){
+  civicrm_initialize();
+  $other_details_custom_group = OTHER_DETAILS_GROUP_ID;
+  $customForm = null;
+  $customValue = array();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contact', $customForm, $contactID, $other_details_custom_group );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ){
+    if( strstr( $tableKey, 'ms' ) ){
+      $customColumn['ms_number'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['ms_number'] );
+      $customField['ms_number'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+  }
+  if( $contactID ){
+    foreach( $groupTree[OTHER_DETAILS_GROUP_ID]['fields'] as $fieldKey => $fieldValue ) {
+      if( array_key_exists( 'customValue', $fieldValue ) ){
+        $value = current($fieldValue['customValue']);      
+        $customValue[ $fieldValue[ 'column_name' ] ] = $value[ 'data' ];
+      }
+    }
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField, 'value' => $customValue );
+}
+
+function getRBCColumns() {
+  civicrm_initialize();  
+  $rbc_custom_group_id = RBC_CUSTOM_GROUP_ID;
+  $customForm = null;
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contribution', $customForm, null, $rbc_custom_group_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ){
+    if( strstr( $tableKey, 'rbc' ) ){
+      $customColumn['rbc'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['rbc'] );
+      $customField['rbc'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'in_progress' ) ){
+      $customColumn['date'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['date'] );
+      $customField['date'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'activity' ) ){
+      $customColumn['activity'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['activity'] );
+      $customField['activity'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'test' ) ){
+      $customColumn['test'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['test'] );
+      $customField['test'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+function generateArecord( $file_name, $name, $rbc_file_id, $result, $currentDate, $rbcType  ) {
+    civicrm_initialize();
+    $config = CRM_Core_Config::singleton();
+    $type = $rbcType;
+    if (!direct_debit_admin_require_once_rbc(TRUE)) {
+      drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+      return FALSE;
+    }
+
+    // Initialize new RBC file. For more information about DTA see the dta docs example: example_debit.php.
+    $rbc_file = new RBC( $type );
+    
+    $sender['rbc_file_header'] = CREDIT_FILE_HEADER;
+    $sender['client_name']     = CLIENT_NAME;
+    $sender['client_number']   = CLIENT_NUMBER;
+    $sender['file_number']     = $rbc_file->formatFileNumber( $rbc_file_id );
+    $date = "2011-08-30 00:00:00";
+    $sender['file_date']       = "";
+    $sender['currency_type']   = CURRENCY_TYPE;
+    $customDataDetails = getRBCColumns();
+    
+    //get all contributions with current file id
+    //$contributionParam = array( $customDataDetails['fieldId']['rbc'] => $rbc_file_id,
+    // 'version'  => 3 );
+    //$result = getContributions( $contributionParam );
+    $firstContribution = reset($result['values']);
+    $sender['file_date']     = convertDate( $currentDate );
+    
+    // This is also the default sender for transactions ... therefore we have to set sender each time
+    
+    if (!$rbc_file->setAccountFileSender($sender)) {
+        drupal_set_message(t('Error while setting the RBC sender data. Please check the Direct Debit configuration or contact the site administrator.'), 'error');
+        return FALSE;
+    }
+    
+    $output = $rbc_file->generateArecord();
+    if (empty($output)) {
+        drupal_set_message(t('Unknown Error occurred. The RBC file could not be created. Please check the direct debit configuration or contact the site administrator.'), 'error');
+        return FALSE;
+    } else {
+        file_put_contents( $file_name, $output );
+    }
+    return array( 'path' => $file_name, 'name' => $name, 'last_number' => 1 );
+}
+function generateZrecord( $file_name, $name, $rbc_file_id, $result, $debitName ) { 
+  civicrm_initialize();
+  $config = CRM_Core_Config::singleton();
+  $type = 1;
+  if (!direct_debit_admin_require_once_rbc(TRUE)) {
+    drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+    return FALSE;
+  }
+  
+  // Initialize new RBC file. For more information about DTA see the dta docs example: example_debit.php.
+  $rbc_file = new RBC( $type ); 
+    
+  $sender['rbc_file_header'] = CREDIT_FILE_HEADER;
+  $sender['client_name']     = CLIENT_NAME;
+  $sender['client_number']   = CLIENT_NUMBER;
+  $sender['file_number']     = $rbc_file->formatFileNumber( $rbc_file_id );
+  $date = "2011-08-30 00:00:00";
+  $sender['file_date']       = "";
+  $sender['currency_type']   = CURRENCY_TYPE;
+  if (!$rbc_file->setAccountFileSender($sender)) {
+    drupal_set_message(t('Error while setting the RBC sender data. Please check the Direct Debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+  
+  $output = $rbc_file->generateZrecord( $debitName );
+  if (empty($output)) {
+    drupal_set_message(t('Unknown Error occurred. The RBC file could not be created. Please check the direct debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  } else {
+    file_put_contents( $file_name, $output, FILE_APPEND );
+  }
+  return array( 'path' => $file_name, 'name' => $name, 'last_number' => 0 );
+}
+/**
+ * Create rbc for all contributions with status pending
+ *
+ * @return mixed: activity id if successful; otherwise FALSE
+ */
+function direct_debit_admin_create_rbc_and_update_status( $mode = 'live' ) {
+  require_once 'api/api.php';
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  require_once 'CRM/Utils/File.php'; 
+  require_once 'CRM/Core/DAO.php';
+  global $user;
+  global $base_url;
+  $customForm = null;
+  $debitName  = null;
+  $creditName = null;
+  $c = 0;
+  $summaryData = $chunkArray = array();
+  // get the next dta_file_id
+  $customDataDetails = getRBCColumns();
+  
+  //get max real export file id
+  $sql = "SELECT MAX(CAST({$customDataDetails[ 'columns' ][ 'rbc' ]} as UNSIGNED) ) FROM {$customDataDetails[ 'table' ]} where  {$customDataDetails[ 'columns' ][ 'test' ]} != 1 OR {$customDataDetails[ 'columns' ][ 'test' ]} IS NULL";
+  $rbc_file_id = 1 + CRM_Core_DAO::singleValueQuery( $sql );
+
+  $countSql = "SELECT Count(id) FROM civicrm_contribution WHERE contribution_status_id = 5 AND payment_instrument_id = 6";
+  $contrCount = CRM_Core_DAO::singleValueQuery( $countSql );
+ 
+  if ( $contrCount > 0 ) {
+    $range = 2000;
+    $chunkArray = range(0, $contrCount, $range);
+    if( !empty($chunkArray)) {
+      if( in_array($contrCount, $chunkArray ) )  {
+        end($chunkArray);
+        $endKey = key($chunkArray);
+        unset($chunkArray[$endKey]);
+      } 
+    } else {
+      $chunkArray[] = 0;
+      $chunkArray[] = $contrCount;
+    }
+    end($chunkArray);
+    $endKey = key($chunkArray);
+  } else {
+    return;
+  }
+  $debitLastNumber = $creditLastNumber = 2;
+  $creditTransactions = $summaryTransactions = array();
+  $params = array( 
+                  'payment_instrument' => 'Direct Debit',
+                  'contribution_status_id' => 5,
+                  'version' => 3
+                   );
+  
+  $result = getContributions( $params, null, 1 );
+  
+  $config = CRM_Core_Config::singleton();
+  $firstContribution   = reset($result['values']);
+  define('RBC_DATE', $firstContribution['receive_date']);
+  $currentDate = date('Y-m-d H:i:s');
+  $debit_name  = direct_debit_rbc_file_name( $currentDate );
+  $direct_debit_file_name = $config->customFileUploadDir . CRM_Utils_File::makeFileName( $debit_name );
+  $debitName   = generateArecord( $direct_debit_file_name, $debit_name, $rbc_file_id, $result, $currentDate, 1 );
+  $credit_name = direct_credit_rbc_file_name( $currentDate );
+  $direct_credit_file_name = $config->customFileUploadDir . CRM_Utils_File::makeFileName( $credit_name );
+  $creditName   = generateArecord( $direct_credit_file_name, $credit_name, $rbc_file_id, $result, $currentDate, 0  );
+  $debitTotal = $creditTotal = 0;
+  
+  $result = $params = null; $activityResult = null;
+  if( $mode == 'live' ) {
+    $activityTypeId = EXPORT_RBC_ACTIVITY_TYPE_ID;
+  } else {
+    $activityTypeId = TEST_EXPORT_RBC_ACTIVITY_TYPE_ID;
+  }
+  
+  $ufMatchParams = array( 
+                         'uf_id' => $user->uid,
+                         'version' => 3,
+                          );
+  $ufResult = civicrm_api( 'uf_match','get',$ufMatchParams );
+  $loggedIn = $ufResult['values'][$ufResult['id']]['contact_id'];
+  $params = array( 
+                  'source_contact_id'    => $loggedIn,
+                  'activity_type_id'     => $activityTypeId,
+                  'assignee_contact_id'  => $loggedIn,
+                  'subject'              => "RBC Export",
+                  'activity_date_time'   => date( 'Y-m-d H:i:s' ),
+                  'status_id'            => 2,
+                  'priority_id'          => 2,
+                  'version'              => 3,
+                   );
+  $activityResult = civicrm_api( 'activity','create',$params );
+  
+  $params = null;
+  $setSummary = $nsfCount = $serviceCharge = $general_contributions = $summaryGeneralCont= 0;
+  foreach( $chunkArray as $chunKey => $offset ) {
+    if( $endKey == $chunKey ) {
+      $range = $contrCount - $offset;
+    }
+    $params = array( 
+                    'payment_instrument' => 'Direct Debit',
+                    'contribution_status_id' => 5,
+                    'version' => 3
+                     );
+    $result = getContributions( $params, 0, $range );
+    if(!empty($result)) {
+      continue;
+    }
+    $count = 0;
+    foreach ($result['values'] as $key => $val ) {
+      $c++;
+      $val[ $customDataDetails[ 'fieldId' ][ 'rbc' ] ]  = $rbc_file_id;
+      $val[ $customDataDetails[ 'fieldId' ][ 'date' ] ] = date('Y-m-d H:i:s');
+      if( $mode != 'live' ) {
+        $val[ $customDataDetails[ 'fieldId' ][ 'test' ] ] = 1;
+      }
+      
+      if ( !$result ) {
+        $error[] = $trxn_id;
+      } else {      
+        if( is_array( $activityResult ) ){
+          $val[ $customDataDetails[ 'fieldId' ][ 'activity' ] ] = $activityResult['id'];
+        }
+        $val['version'] = 3;
+        $val['id'] = $val[ 'contribution_id' ];
+        $val['amount_level'] =
+          CRM_Core_DAO::VALUE_SEPARATOR .
+          implode( CRM_Core_DAO::VALUE_SEPARATOR, $val['amount_level'] ). 
+          CRM_Core_DAO::VALUE_SEPARATOR; 
+        unset( $val[ 'contribution_status' ] );
+        unset( $val[ 'contribution_status_id' ] );
+        unset( $val[ 'contribution_type_id' ] );
+        $val['net_amount'] = $val['total_amount'];
+        $val['contribution_status_id'] = 1;
+        $createResult = civicrm_api( 'contribution', 'create', $val );
+      }
+      CRM_Core_DAO::freeResult();
+      $count++;
+    }
+    
+    //create files
+    $activityCustomDataDetails = getActivityFileColumns();
+    $customDataDetails = getRBCColumns();
+    
+    //get all contributions with current file id
+    $contributionParam = array(
+                               $customDataDetails['fieldId']['rbc'] => $rbc_file_id,
+                               'version'  => 3
+                                );
+    $contributionParamResult = getContributions( $contributionParam, $offset, $range );
+    
+    
+    if( $mode == 'live' ) {
+      $debitName  = direct_debit_rbc_download_create( $rbc_file_id, $contributionParamResult, $direct_debit_file_name, $debitTotal, $debit_name, $debitLastNumber );
+      $debitTotal = $debitName['amount'];
+      $debitLastNumber = $debitName['last_number'];
+      $creditName = direct_credit_rbc_download_create( $rbc_file_id, $contributionParamResult, $direct_credit_file_name, $chunKey, $credit_name, $creditTransactions, $serviceCharge, $general_contributions );
+      $creditTransactions    = $creditName['transaction'];
+      $creditTotal           = $creditName['amount'];
+      $creditLastNumber      = $creditName['last_number'];
+      $serviceCharge         = $creditName['service_charge'];
+      $general_contributions = $creditName['general_contributions'];
+      $summaryDetails    = rbc_summary_download_create( $rbc_file_id, $contributionParamResult, $setSummary, $direct_debit_file_name, $direct_credit_file_name, $nsfCount, $summaryGeneralCont);
+      
+      $nsfCount                         = $summaryDetails['nsfCount'];
+      $summaryGeneralCont               = $summaryDetails['summaryGeneralCont'];
+      $summaryData['dollarValue']       = $summaryData['dollarValue'] + $summaryDetails['dollarValue'];
+      $summaryData['debitDollarValue']  = $summaryData['debitDollarValue'] + $summaryDetails['debitDollarValue'];
+      //$summaryData['debitTrans']        = $summaryData['debitTrans'] + $summaryDetails['debitTrans'];
+      //$summaryData['creditTrans']       = $summaryData['creditTrans'] + $summaryDetails['creditTrans'];
+      $summaryData['masterDebitTrans']  = $summaryData['masterDebitTrans'] + $summaryDetails['masterDebitTrans'];
+      $summaryData['masterCreditTrans'] = $summaryData['masterCreditTrans'] + $summaryDetails['masterCreditTrans'];
+      $summaryData['visaDebitTrans']    = $summaryData['visaDebitTrans'] + $summaryDetails['visaDebitTrans'];
+      $summaryData['visaCreditTrans']   = $summaryData['visaCreditTrans'] + $summaryDetails['visaCreditTrans'];
+      //$summaryData['creditTrans']       = $summaryData['creditTrans'] + $summaryDetails['creditTrans'];
+      $summaryData['transactions']      = $summaryData['transactions'] + $summaryDetails['transactions'];
+      $summaryData['visaDollarsSC']     = $summaryData['visaDollarsSC'] + $summaryDetails['visaDollarsSC'];
+      $summaryData['masterDollarsSC']   = $summaryData['masterDollarsSC'] + $summaryDetails['masterDollarsSC'];
+      $summaryData['visaDollars']       = $summaryData['visaDollars'] + $summaryDetails['visaDollars'];
+      $summaryData['masterDollars']     = $summaryData['masterDollars'] + $summaryDetails['masterDollars'];
+      $summaryData['creditSC']          = $summaryData['creditSC'] + $summaryDetails['creditSC'];
+      // $summaryData['creditTransactions'] = $summaryData['creditTransactions'] + $summaryDetails['creditTransactions'];
+      
+    }
+    
+    $summaryData['debitTrans']  = $debitLastNumber - 2;
+    $summaryData['creditTrans'] = $creditLastNumber - 2;
+     
+    if( !$creditName && $mode == 'live' ) {
+      $cid        = $_SESSION[ 'CiviCRM' ]['userID'];
+      $activityId = $activityResult[ 'id' ];
+      CRM_Core_Error::statusBounce( 'Cannot export negative amount files', CRM_Utils_System::crmURL( array('p' => 'civicrm/activity',
+                                                                                                           'q' => "atype={$activityTypeId}&action=view&reset=1&id={$activityId}&cid={$cid}" ) ) );
+    }
+    
+    if( $mode == 'live' ) {
+      require_once 'api/api.php';
+      $nsf = getPreviousNsf( );
+      $c = 0;
+      foreach ( $contributionParamResult['values'] as $key => $val ) {
+        $c++;
+        $val['amount_level'] =
+          CRM_Core_DAO::VALUE_SEPARATOR .
+          implode( CRM_Core_DAO::VALUE_SEPARATOR, $val['amount_level'] ). 
+          CRM_Core_DAO::VALUE_SEPARATOR;
+        $result = direct_debit_pp_update_civicrm_status( $key, 1, $val);
+      }
+      
+      $nsfCustoData = getNSFColumns();
+      foreach ( $nsf as $contrKey => $value ) {
+        $updateParams = array( 'id' => $contrKey,
+                               $nsfCustoData['fieldId']['nsf'] => 0,
+                               'version'  => 3 );
+        $results = civicrm_api( 'contribution', 'create', $updateParams );
+      }
+      CRM_Core_DAO::freeResult();
+    }
+  }
+  $summaryData['creditTrans'] = count($creditTransactions);
+  
+  $summary   =  otherSummaryDetails($rbc_file_id, $summaryData, $setSummary, $debit_name, $credit_name, $nsfCount, $summaryGeneralCont, $debitTotal );
+  $config = CRM_Core_Config::singleton();
+  $formatedTree = array();
+  $type = 0;
+  if (!direct_debit_admin_require_once_rbc(TRUE)) {
+      drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+      return FALSE;
+  }
+  // Initialize new RBC file. 
+  $rbc_file = new RBC( $type );
+  $sender['rbc_file_header'] = CREDIT_FILE_HEADER;
+  $sender['client_name']     = CLIENT_NAME;
+  $sender['client_number']   = CLIENT_NUMBER;
+  $sender['file_number']     = $rbc_file->formatFileNumber( $rbc_file_id );
+  $date = "2011-08-30 00:00:00";
+  $sender['file_date']       = "";
+  $sender['currency_type']   = CURRENCY_TYPE;
+  if (!$rbc_file->setAccountFileSender($sender)) {
+    drupal_set_message(t('Error while setting the RBC sender data. Please check the Direct Debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+  /* service chrage send to credit file record */
+  $serviceCharge   += $general_contributions * PER_TRANSACTION_FEES;
+  $paymentDate     = convertDate( $currentDate );
+  $output = $rbc_file->getCreditFileContent( $creditTransactions, $sender, 3, $serviceCharge, $paymentDate, $nsfCount );
+  //$last_number = $rbc_file->getLastNumber();
+  if (empty($output)) {
+    drupal_set_message(t('Unknown Error occurred. The RBC file could not be created. Please check the direct debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  } else {
+    file_put_contents( $direct_credit_file_name, $output, FILE_APPEND );
+  }
+
+  //get all contributions with current file id
+  /* $contributionParam = array( $customDataDetails['fieldId']['rbc'] => $rbc_file_id, */
+  /*                             'version'  => 3 ); */
+  /* $contributionParamResult = getContributions( $contributionParam ); */
+  
+  $debitName   = generateZrecord( $direct_debit_file_name, $debit_name, $rbc_file_id, $result, $debitName );
+  
+  if( $creditName && $debitName ) {
+    $updateActivityParams[ $activityCustomDataDetails['fieldId']['rbc_credit_file'] ] = array( 'name'  => $creditName['path'],
+                                                                                               'type'  => 'application/octet-stream',
+                                                                                               'error' => 0,
+                                                                                               );
+    $updateActivityParams[ $activityCustomDataDetails['fieldId']['rbc_debit_file'] ]  = array( 'name' => $debitName['path'],
+                                                                                               'type' => 'application/octet-stream',
+                                                                                               'error' => 0,
+                                                                                               );
+    $updateActivityParams['version']  = 3;
+    $updateActivityParams['id']       = $activityResult[ 'id' ];
+    $updateActivityParams['subject']  = "RBC Export of {$debitName['name']} and {$creditName['name']}";
+    $updateActivityParams[$activityCustomDataDetails['fieldId']['summary_file']] = array(  'name' => $summary,
+                                                                                         'type' => 'application/pdf',
+                                                                                         'error' => 0,
+                                                                                         );
+    $activityResult = civicrm_api( 'activity', 'update', $updateActivityParams ); 
+  }
+  if (!empty($error)) {
+    // one or more civicrm update errors
+    drupal_set_message(t('The contribution status in CiviCRM was updated to status <em>@status</em> for only @count of @n contributions.',
+                         array('@count' => $count - count($error),
+                               '@n' => $count,
+                               '@status' => direct_debit_get_contribution_status(5),
+                               )), 'error');
+    
+  }
+  
+  return $activityResult[ 'id' ];
+}
+
+/* function direct_debit_mail($key, &$message, $params) { */
+/*   $language = $message['language']; */
+/*   $variables = user_mail_tokens($params['account'], $language); */
+/*   switch($key) { */
+/*   case 'notice': */
+/*     $message['subject'] = t('Notification from !site', $variables, $language->language); */
+/*     $message['body'][] = t("Dear !username\n\nThere is new content available on the site.", $variables, $language->language); */
+/*     break; */
+/*   } */
+/* } */
+
+function direct_credit_rbc_download_create( $rbc_file_id, $result, $file_name, $chunKey, $credit_name, $creditTransactions, $serviceCharge, $general_contributions ) {
+
+  // require once RBC.php
+  civicrm_initialize(); 
+  require_once 'api/api.php';
+  $config = CRM_Core_Config::singleton();
+  $formatedTree = array();
+  $type = 0;
+  if (!direct_debit_admin_require_once_rbc(TRUE)) {
+    drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+    return FALSE;
+  }
+  // Initialize new RBC file. 
+  $rbc_file = new RBC( $type );
+  
+  //calculate nsf
+  $nsfData = getNSFColumns();
+  $getNSFContributions = array( 'version'  =>  3,
+                                $nsfData[ 'fieldId' ][ 'nsf' ] => 1 );
+
+  $nsfResult = civicrm_api( 'contribution','get', $getNSFContributions );
+  $nsfAmount = array();
+  foreach( $nsfResult['values'] as $nsfKey => $nsfValue ) {
+    $getRelationParam = array( 'version' => 3,
+                               'contact_id' => $nsfValue['contact_id'] );
+    $relResult = civicrm_api( 'relationship','get', $getRelationParam );
+    foreach( $relResult['values'] as $relResultKey => $relResultValue ){
+      if( $relResultValue[ 'relationship_type_id' ] != SUPPORTER_RELATION_TYPE_ID ){
+        unset( $relResult['values'][$relResultKey] );
+      } else {
+        if( array_key_exists( $relResultValue[ 'contact_id_b' ], $nsfAmount ) ){
+          $nsfAmount[ $relResultValue[ 'contact_id_b' ] ] += $nsfValue[ 'total_amount' ];              
+        } else {
+          $nsfAmount[ $relResultValue[ 'contact_id_b' ] ] = $nsfValue[ 'total_amount' ];
+        }
+      }
+    }
+  }
+  //Hardcoding bank details
+  $sender['rbc_file_header'] = CREDIT_FILE_HEADER;
+  $sender['client_name']     = CLIENT_NAME;
+  $sender['client_number']   = CLIENT_NUMBER;
+  $sender['file_number']     = $rbc_file->formatFileNumber( $rbc_file_id );
+  $date = "2011-08-30 00:00:00";
+  $sender['file_date']       = "";
+  $sender['currency_type']   = CURRENCY_TYPE;
+  $customDataDetails = getRBCColumns();
+  
+  // //get all contributions with current file id
+  // //$contributionParam = array( $customDataDetails['fieldId']['rbc'] => $rbc_file_id,
+  // // 'version'  => 3 );
+  // //$result = getContributions( $contributionParam );
+  // $firstContribution = reset($result['values']);
+  // $sender['file_date']     = convertDate($firstContribution[$customDataDetails['fieldId']['date']]);
+
+  // // This is also the default sender for transactions ... therefore we have to set sender each time
+
+  if (!$rbc_file->setAccountFileSender($sender)) {
+    drupal_set_message(t('Error while setting the RBC sender data. Please check the Direct Debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+  $in_progress_date = '';
+  $output = array();
+  foreach( $result['values'] as $contributionKey => $contributionValue ) {
+    // $rowkey = $offset + 1;
+    $customerName = direct_debit_rbc_make_valid_lines($rbc_file, $contributionValue['display_name'], 1, 30, 'customer_name');
+    $getRelationParam = array( 'version' => 3,
+                               'contact_id' => $contributionValue['contact_id'] );
+    $result = civicrm_api( 'relationship','get', $getRelationParam );
+    
+    foreach( $result['values'] as $resultKey => $resultValue ){
+      if( $resultValue[ 'relationship_type_id' ] != SUPPORTER_RELATION_TYPE_ID ){
+        unset( $result['values'][$resultKey] );
+      } else {
+        $result['id'] = $resultValue['id'];
+      }
+    }
+      
+    if( array_key_exists( 'id', $result ) && !empty( $result['values'] )  && array_key_exists( $result['values'][ $result['id'] ]['contact_id_b'], $nsfAmount ) ){
+      $contributionValue[ 'total_amount' ] -= $nsfAmount[ $result['values'][ $result['id'] ]['contact_id_b'] ];
+      unset( $nsfAmount[ $result['values'][ $result['id'] ]['contact_id_b'] ] );
+    }
+    
+    require_once 'CRM/Core/BAO/CustomGroup.php';
+    $account_custom_group_id = ORGANIZATION_ACCOUNT_CUSTOM_GROUP_ID;
+    $customForm = null;
+    if( array_key_exists( 'id', $result ) && array_key_exists( 'values', $result ) && !empty( $result['values'] ) ){
+      $customerName = direct_debit_rbc_make_valid_lines($rbc_file, $result['values'][ $result['id'] ]['display_name'], 1, 30, 'customer_name');
+     
+      $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Organization', $customForm,$result['values'][ $result['id'] ]['contact_id_b'] , $account_custom_group_id );
+      $formatedTree = CRM_Core_BAO_CustomGroup::formatGroupTree( $groupTree, 1, $customForm );
+      $formatedTree = current($formatedTree);
+    }
+    
+    $accountDetails = array();
+    foreach( $formatedTree['fields'] as $treeKey => $treeValue ){
+      if( strstr( $treeValue['column_name'], 'bank_number' )){
+        $accountDetails['bank'] = CRM_Utils_Array::value( 'element_value', $treeValue );
+      } else if( strstr( $treeValue['column_name'], 'account_number' )){
+        $accountDetails['account'] = CRM_Utils_Array::value( 'element_value', $treeValue ); 
+      } else if( strstr( $treeValue['column_name'], 'branch_number' )){
+        $accountDetails['branch'] = CRM_Utils_Array::value( 'element_value', $treeValue );
+      }
+    }
+
+    $org_id = $result['values'][ $result['id'] ]['contact_id_b'];
+    $otherDetails         = getOtherDetailsColumns( $org_id );
+    /* my extra code for organization contact id - starts*/
+    $external_identifier  = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $org_id, 'external_identifier', 'id' );
+    $donor_id             = ltrim($external_identifier, 'O-');
+    $ms = '';
+    if( array_key_exists( $otherDetails[ 'columns' ][ 'ms_number' ], $otherDetails[ 'value' ] ) ){
+      $ms = $otherDetails[ 'value' ][ $otherDetails[ 'columns' ][ 'ms_number' ] ];
+    }
+    // $ms = str_pad($ms, 8, 0, STR_PAD_LEFT);
+    // $donor_id = str_pad($donor_id, 10, 0, STR_PAD_LEFT);
+    
+    // $customerNumber       = $ms.$donor_id;
+    $customerNumber = str_pad($ms, 8, 0, STR_PAD_LEFT);
+    $contactId['contact_id'] = $org_id;
+    /* my extra code for organization contact id - ends*/
+    
+    /* $getContactParam = array( 'version' => 3, */
+    /*                           'contact_id' => $org_id, */
+    /*                           'contact_type' => 'organization'); */
+    /* $resultConact = civicrm_api( 'contact','get', $getContactParam ); */
+    
+    /* $customForm = null; */
+    /* require_once "CRM/Core/BAO/CustomGroup.php"; */
+    /* $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contribution', $customForm, null, 2 ); */
+    /* $accountDetails = getAccountColumns(); */
+    /* $rbcDetails     = getRBCColumns(); */
+    
+    if( array_key_exists( 'bank', $accountDetails ) ) {
+      $bankNumber = $accountDetails['bank'];
+    } else {
+      $bankNumber = "";
+    }
+    
+    $bankNumber           = str_pad( $bankNumber, 4, '0', STR_PAD_LEFT);
+    $bankNumber           = direct_debit_rbc_make_valid_lines($rbc_file, $bankNumber, 1, 4, 'bank_number');
+    
+    if( array_key_exists( 'branch', $accountDetails ) ){
+      $branchNumber = $accountDetails['branch'];
+    } else {
+      $branchNumber = "";
+    }      
+    $branchNumber         = str_pad( $branchNumber, 5, '0', STR_PAD_LEFT);
+    $branchNumber         = direct_debit_rbc_make_valid_lines($rbc_file, $branchNumber, 1, 5, 'branch_number');
+
+    if( array_key_exists( 'account', $accountDetails ) ){
+      $accountNumber = $accountDetails['account'];
+    } else {
+      $accountNumber = "";
+    } 
+    // $accountNumber        = str_pad( $accountNumber, 10, '0', STR_PAD_LEFT);
+    $accountNumber        = direct_debit_rbc_make_valid_lines($rbc_file, $accountNumber, 1, 18, 'account_number');
+    //Hardcodedcustomer number
+    $tempHardcodedCustomerNumber     = CUSTOMER_NUMBER;
+    $tempHardcodedTransactionCode    = TRANSACTION_CODE;
+    $tempHardcodedPaymentNumber      = PAYMENT_NUMBER;
+    $tempHardcodedDestinationCur     = DESTINATION_CURRENCY;
+    $tempHardcodedDestinationCountry = DESTINATION_COUNTRY;
+    $otherDetails         = getOtherDetailsColumns( $contributionValue['contact_id'] );
+    /*credit file account data from contribution type table -start*/
+    $amount = null; $funds = array();
+    if( $contributionValue['custom_31'] != 'NULL') {
+      $serviceCharge += $contributionValue['fee_amount'];
+    }
+    foreach( $contributionValue['amount_level'] as $key => $val ) {
+      $contribution_type_id = $contributionValue['contribution_type_id'];
+      $bankNumber = $branchNumber = $accountNumber = array();
+      $amountLavel = explode(" ", $val);
+      $fundType = $amountLavel[0];
+      $amount   = $amountLavel[1];
+      
+      $query = "SELECT bank_id, branch_number, account_number, bank_name, branch_name FROM civicrm_contribution_type WHERE parent_id = {$contribution_type_id} AND name = '{$fundType}'";
+      $fund = CRM_Core_DAO::executeQuery( $query );
+      if( $fund->N ) {
+        while($fund->fetch()){
+          $bankNumber['bank_number'] = $fund->bank_id;
+          $branchNumber['branch_number'] = $fund->branch_number;
+          $accountNumber['account_number'] = $fund->account_number;
+        }
+      }
+     
+      if ( $fundType == 'General') {
+        $fund_id = 1;
+        $general_contributions++;
+        $funds[$fund_id] = '(LO)';
+      } else if ( $fundType == 'Other' ) {
+        $fund_id = 2;
+        $funds[$fund_id] = '(OT)';
+      } else {
+        $fund_id = 3;
+        $funds[$fund_id] = '(MS)';
+      }
+
+      //$c++; echo "\n";print_r($fundType);echo "\n";
+    }
+    if(in_array("(LO)", $funds)) {
+      $fund = '(LO)';
+    } else if(in_array("(OT)", $funds)) {
+      $fund = '(OT)';
+    } else if(in_array("(MS)", $funds)) {
+      $fund = '(MS)';
+    }
+    
+    $tempHardcodedClientShortName    = CLIENT_SHORT_NAME;
+    /*credit file account data from contribution type table -end*/
+    //$customerfund         = direct_debit_rbc_make_valid_lines($rbc_file, $fund_id, 1, 1, 'customer_fund');
+    $customer             = $fund." ".$customerName['customer_name'];
+    $customerNam          = direct_debit_rbc_make_valid_lines($rbc_file, $customer, 1, 30, 'customer_name');
+    $customerNum          = direct_debit_rbc_make_valid_lines($rbc_file, $customerNumber, 1, 19, 'customer_number');
+    $transactionCode      = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedTransactionCode, 1, 3, 'transaction_code');
+    $paymentNumber        = direct_debit_rbc_make_valid_lines($rbc_file, '0 ', 1, 2, 'payment_number');
+    $amount               = direct_debit_rbc_make_valid_lines($rbc_file, $contributionValue['total_amount'], 1, 10, 'amount');
+    $paymentDate          = convertDate();
+    $paymentDate          = direct_debit_rbc_make_valid_lines($rbc_file, $paymentDate, 1, 7, 'payment_date');
+    $language             = direct_debit_rbc_make_valid_lines($rbc_file, 'E', 1, 1, 'language');
+    $clientShortName      = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedClientShortName, 1, 15, 'client_short_name');
+    $destinationCur       = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedDestinationCur, 1, 3, 'destination_currency');
+    $destinationCountry   = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedDestinationCountry, 1, 3, 'destination_country');
+    $optionalRecord       = direct_debit_rbc_make_valid_lines($rbc_file, 'N', 1, 1, 'optional_record');
+    $contributionType     = array( 'type' =>  $contributionValue['contribution_type'] );
+    $contribution = array_merge( $customerNam, $customerNum, $transactionCode, $paymentNumber, $bankNumber, $branchNumber, $accountNumber, $amount, $paymentDate, $language, $clientShortName, $destinationCur, $destinationCountry, $optionalRecord, $contributionType, $contactId);
+  
+    $creditTransactions = $rbc_file->addCreditTransactions( $contribution, $creditTransactions );
+  }
+  foreach( $rbc_file->transactions as $transactionKey => $transactionValue ) {
+    if( $transactionValue['amount'] < 0 ) {
+      return false;
+    }
+  }
+
+  return array( 'path' => $file_name, 'name' => $credit_name, 'last_number' => $last_number, 'transaction' => $creditTransactions, 'service_charge' => $serviceCharge, 'general_contributions' => $general_contributions );
+}
+
+// to adapt function:
+function direct_debit_rbc_download_create( $rbc_file_id, $result, $file_name, $debitTotal, $debit_name, $offset ) {  
+  
+  // require once RBC.php
+  civicrm_initialize();
+  $config = CRM_Core_Config::singleton();
+  
+  $type = 1;
+  if (!direct_debit_admin_require_once_rbc(TRUE)) {
+    drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+    return FALSE;
+  }
+
+  // Initialize new RBC file. For more information about DTA see the dta docs example: example_debit.php.
+  $rbc_file = new RBC( $type );
+  
+  //Hardcoding bank details
+  $sender['rbc_file_header'] = DEBIT_FILE_HEADER;
+  $sender['client_name']     = CLIENT_NAME;
+  $sender['client_number']   = CLIENT_NUMBER;
+  $sender['file_number']     = $rbc_file->formatFileNumber( $rbc_file_id ); 
+  $sender['file_date']       = "";
+  $sender['currency_type']   = CURRENCY_TYPE;
+  $customDataDetails = getRBCColumns();
+
+  //get all contributions with current file id
+  //$contributionParam = array( $customDataDetails['fieldId']['rbc'] => $rbc_file_id,
+  //'version'  => 3 );
+  require_once 'api/api.php';
+  //$result = getContributions( $contributionParam );
+  $firstContribution = reset($result['values']);
+  $sender['file_date']     = convertDate( $firstContribution[$customDataDetails['fieldId']['date']] );
+
+  // This is also the default sender for transactions ... therefore we have to set sender each time
+
+  if (!$rbc_file->setAccountFileSender($sender)) {
+    drupal_set_message(t('Error while setting the RBC sender data. Please check the Direct Debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+
+  $in_progress_date = '';
+  $output = array();
+  $count = 0;
+  foreach( $result['values'] as $contributionKey => $contributionValue ) {
+    if( $contributionValue['custom_31'] != 'NULL' && CRM_Utils_Array::value('custom_31', $contributionValue ) ) {
+       continue;
+    }
+    $otherDetails         = getOtherDetailsColumns( $contributionValue['contact_id'] );
+    $external_identifier  = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $contributionValue['contact_id'], 'external_identifier', 'id' );
+    $donor_id             = ltrim($external_identifier, 'D-');
+    
+    $names = CRM_Core_DAO::executeQuery("SELECT id, last_name, first_name FROM civicrm_contact WHERE external_identifier LIKE '%{$external_identifier}%'");
+    $par_donor_name = null;
+    $records = array();
+    // if($names->N > 1 ) {
+    while($names->fetch()){
+      $records[trim($names->last_name)][] = trim($names->first_name);
+    }
+    foreach( $records as $key => $value ) {
+      if ( !empty($par_donor_name)) {
+        $par_donor_name = $par_donor_name." & ".$key.", ".implode( ' & ' ,  $value );
+      } else {
+        $par_donor_name = $key.", ".implode( ' & ' ,  $value );
+      }
+    }
+    //} 
+    /* else { */
+    /*   while($names->fetch()){ */
+    /*     $par_donor_name = trim($names->last_name).', '.trim($names->first_name); */
+    /*   } */
+    /* } */
+   
+    $customerName         = direct_debit_rbc_make_valid_lines( $rbc_file, $par_donor_name, 1, 30, 'customer_name' );
+    
+    $ms = '';
+    if( array_key_exists( $otherDetails[ 'columns' ][ 'ms_number' ], $otherDetails[ 'value' ] ) ){
+      $ms = $otherDetails[ 'value' ][ $otherDetails[ 'columns' ][ 'ms_number' ] ];
+    }
+    $ms = str_pad($ms, 8, 0, STR_PAD_LEFT);
+    $donor_id = str_pad($donor_id, 10, 0, STR_PAD_LEFT); 
+    
+    $customerNumber       = $ms.$donor_id;
+    $tempHardcodedTransactionCode    = TRANSACTION_CODE;
+    $tempHardcodedPaymentNumber      = PAYMENT_NUMBER;
+    $tempHardcodedClientShortName    = CLIENT_SHORT_NAME;
+    $tempHardcodedDestinationCur     = DESTINATION_CURRENCY;
+    $tempHardcodedDestinationCountry = DESTINATION_COUNTRY;
+    $customerNumber       = direct_debit_rbc_make_valid_lines($rbc_file, $customerNumber, 1, 19, 'customer_number');
+    $transactionCode      = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedTransactionCode, 1, 3, 'transaction_code');
+    $paymentNumber        = direct_debit_rbc_make_valid_lines($rbc_file, '0 ', 1, 2, 'payment_number');
+    
+    if( array_key_exists( 'custom_2', $contributionValue ) ) {
+      $bankNumber = $contributionValue['custom_2'];
+    } else {
+      $bankNumber = "";
+    }
+    $bankNumber           = str_pad( $bankNumber, 4, '0', STR_PAD_LEFT);
+    $bankNumber           = direct_debit_rbc_make_valid_lines($rbc_file, $bankNumber, 1, 4, 'bank_number');
+    if( array_key_exists( 'custom_5', $contributionValue ) ) {
+      $branchNumber = $contributionValue['custom_5'];
+    } else {
+      $branchNumber = "";
+    }
+    $branchNumber         = str_pad( $branchNumber, 5, '0', STR_PAD_LEFT);
+    $branchNumber         = direct_debit_rbc_make_valid_lines($rbc_file, $branchNumber, 1, 5, 'branch_number');
+    if( array_key_exists( 'custom_4', $contributionValue ) ) {
+      $accountNumber = $contributionValue['custom_4'];
+    } else {
+      $accountNumber = "";
+    }
+    $accountNumber        = direct_debit_rbc_make_valid_lines($rbc_file, $accountNumber, 1, 18, 'account_number');
+    $amount               = direct_debit_rbc_make_valid_lines($rbc_file, $contributionValue['total_amount'], 1, 10, 'amount');
+    $paymentDate          = convertDate();
+    $paymentDate          = direct_debit_rbc_make_valid_lines($rbc_file, $paymentDate, 1, 7, 'payment_date');
+    $language             = direct_debit_rbc_make_valid_lines($rbc_file, 'E', 1, 1, 'language');
+    $clientShortName      = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedClientShortName, 1, 15, 'client_short_name');
+    $destinationCur       = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedDestinationCur, 1, 3, 'destination_currency');
+    $destinationCountry   = direct_debit_rbc_make_valid_lines($rbc_file, $tempHardcodedDestinationCountry, 1, 3, 'destination_country');
+    $optionalRecord       = direct_debit_rbc_make_valid_lines($rbc_file, 'N', 1, 1, 'optional_record');
+    $contactId['contact_id'] = $contributionValue['contact_id'];
+    
+    // foreach( $contributionValue['amount_level'] as $key => $val ){
+    //   $contactId['contact_id'] = $contributionValue['contact_id'];
+    //   $contribution_type_id = $contributionValue['contribution_type_id'];
+    //   $bankNumber = $branchNumber = $accountNumber = array();
+    //   $amountLavel = explode(" ", $val);
+    //   $fundType = $amountLavel[0];
+
+    //   $query = "SELECT bank_id, branch_number, account_number, bank_name, branch_name FROM civicrm_contribution_type WHERE parent_id = {$contribution_type_id} AND name = '{$fundType}'";
+    //   $fund = CRM_Core_DAO::executeQuery( $query );
+    //   if( $fund->N ) {
+    //     while($fund->fetch()){
+    //       $bankNumber['bank_number'] = $fund->bank_id;
+    //       $branchNumber['branch_number'] = $fund->branch_number;
+    //       $accountNumber['account_number'] = $fund->account_number;
+    //     }
+    //   }
+    // }
+    
+    $contribution       = array_merge( $customerName, $customerNumber, $transactionCode, $paymentNumber, $bankNumber, $branchNumber, $accountNumber, $amount, $paymentDate, $language, $clientShortName, $destinationCur, $destinationCountry, $optionalRecord, $contactId);
+    $rbc_file->addTransactions( $contribution, $offset );
+    $debitTotal          += $amount['amount'];
+  }
+  
+  $output = $rbc_file->getFileContent();
+  $last_number = $rbc_file->getLastNumber();
+  $rbc_file->addTransactions( NULL, $last_number );
+  if (empty($output)) {
+    drupal_set_message(t('Unknown Error occurred. The RBC file could not be created. Please check the direct debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  } else {
+    file_put_contents( $file_name, $output, FILE_APPEND );
+  }
+  return array( 'path' => $file_name, 'name' => $debit_name, 'last_number' => $last_number, 'amount' => $debitTotal );
+}
+
+
+function rbc_summary_download_create( $rbc_file_id, $result, $setSummary, $debitDataSet, $creditDataSet, $nsfCount, $summaryGeneralCont ) {
+  civicrm_initialize();
+  $returnDetails = $masterDebitTrans = $masterCreditTrans = $visaDebitTrans = $visaCreditTrans = array();
+  $visaDollarsSC = $visaDollars = $masterDollarsSC = $masterDollars = $creditSC = 'NULL';
+  require_once 'api/api.php';
+
+  $accountDetails = getAccountColumns();
+  $nsfColumns = getNSFColumns();
+  
+  foreach( $result['values'] as $contributionKey => $contributionValue ) {
+    $debitTransactions = getDebitTransaction ( $contributionValue );  // returns bank no., branch no., a/c no. for debit
+    $transactions      = getTransactions( $contributionValue['contact_id'] );// returns bank no., branch no., a/c no. for credit
+    $debitTrans[$contributionKey] = $debitTransactions;
+    $creditTrans[$contributionValue['contact_id']] = $transactions; 
+    if($contributionValue[$accountDetails['fieldId']['type']] == 'NULL' ){
+      $debitDollarValue += $contributionValue['total_amount'];
+    }
+    $dollarValue += $contributionValue['total_amount'];
+    if( array_key_exists( $accountDetails['fieldId']['type'], $contributionValue ) ) {
+          
+      if ($contributionValue[$accountDetails['fieldId']['type']] == 'MasterCard'  ) {
+        $masterDebitTrans[$contributionKey] = $debitTransactions;
+        $masterCreditTrans[$contributionValue['contact_id']] = $transactions;
+        $masterDollarsSC += $contributionValue['fee_amount'];
+        $masterDollars += $contributionValue['total_amount'];
+      } else if ( $contributionValue[$accountDetails['fieldId']['type']] == 'Visa' || $contributionValue[$accountDetails['fieldId']['type']] == 'visa' ) {
+        $visaDebitTrans[$contributionKey] = $debitTransactions;
+        $visaCreditTrans[$contributionValue['contact_id']] = $transactions;
+        $visaDollarsSC += $contributionValue['fee_amount'];
+        $visaDollars += $contributionValue['total_amount'];
+      }
+    }
+    if ( $contributionValue['contribution_payment_instrument'] =  'Credit Card' ) {
+      if ( !empty($contributionValue['fee_amount'] ) ) {
+        $creditSC += $contributionValue['fee_amount'];
+      }
+    }
+    if ($contributionValue[$nsfColumns['fieldId']['nsf']] == 1 ) {
+      $nsfCount += $contributionValue['total_amount'];
+    }
+    
+    foreach( $contributionValue['amount_level'] as $key => $val ) {
+     
+      $amountLavel = explode(" ", $val);
+      $fundType = $amountLavel[0];
+      $amount   = $amountLavel[1]; 
+      if($contributionValue[$accountDetails['fieldId']['type']] == 'NULL' ) {
+        if ( $fundType == 'General') {
+          $summaryGeneralCont++;
+        } 
+      }
+    }
+  }
+  
+  $summaryTotal =+ $dollarValue; 
+  if(is_array($debitTrans)){
+    $transactions = count( array_flip( $debitTrans ) );
+  } 
+  if(is_array($masterDebitTrans)){
+    $masterDoners = count( array_flip( $masterDebitTrans ) );
+  } 
+  if(is_array($visaDebitTrans)){
+    $visaDoners   = count( array_flip( $visaDebitTrans ) );
+  } 
+  if(is_array($masterCreditTrans)){
+    $creditMasterDoners = count( $masterCreditTrans );
+  }
+  if(is_array($visaCreditTrans)){
+    $creditVisaDoners   = count(  $visaCreditTrans );
+  } 
+  if(is_array($creditTrans)){
+    $creditTransactions =  count( array_flip( $creditTrans ) );
+  }
+  
+  $returnDetails['dollarValue'] = $summaryTotal; 
+  $returnDetails['debitDollarValue'] = $debitDollarValue;
+  //$returnDetails['debitTrans'] = $transactions;
+  //$returnDetails['creditTrans'] = $creditTrans;
+  $returnDetails['masterDebitTrans'] = $masterDoners;
+  $returnDetails['masterCreditTrans'] = $creditMasterDoners;
+  $returnDetails['visaDebitTrans'] = $visaDoners;
+  $returnDetails['visaCreditTrans'] = $creditVisaDoners;
+  $returnDetails['creditTrans'] = $creditTransactions;
+  $returnDetails['transactions'] = $transactions;
+  //$returnDetails['creditTransactions'] = $creditTransactions;
+  $returnDetails['visaDollarsSC'] = $visaDollarsSC;
+  $returnDetails['masterDollarsSC'] = $masterDollarsSC;
+  $returnDetails['creditSC'] = $creditSC;
+  $returnDetails['nsfCount'] = $nsfCount;
+  $returnDetails['visaDollars'] = $visaDollars;
+  $returnDetails['masterDollars'] = $masterDollars;
+  $returnDetails['summaryGeneralCont'] = $summaryGeneralCont;
+  
+
+  return $returnDetails;
+  if ( empty( $setSummary ) ) {
+    return true;
+  }
+  // require once RBC.php
+}
+
+function otherSummaryDetails($rbc_file_id, $summaryData, $setSummary, $debit_file_name, $credit_file_name , $nsfDeducted, $summaryGeneralCont, $debitTotal ){
+  $type = 1;
+  if (!direct_debit_admin_require_once_rbc(TRUE)) {
+    drupal_set_message(t('Unable to create the RBC file. Please check the path to the file RBC.php in <a href="@dd_settings_url">Administer > Settings > Direct Debit</a>.', array('@dd_settings_url' => l(url('admin/settings/direct_debit')))), 'error', FALSE);
+    return FALSE;
+  }
+  
+  $rbc_file = new RBC( $type );
+  
+  //Hardcoding bank details
+  $sender['client_name']   = CLIENT_NAME;
+  $sender['client_number'] = CLIENT_NUMBER;
+  $sender['file_number']   = $rbc_file->formatFileNumber( $rbc_file_id );
+  $debitService  = 'PAP';
+  
+  $debitHeader   = 'PAR RBC Export Reconciliation Report - Debits';
+  $diskettes     = '01';
+  $creditService = 'PDS';
+  
+  $creditHeader  = 'PAR RBC Export Reconciliation Report - Credits';
+  $customDataDetails = getRBCColumns();
+  
+  //get all contributions with current file id
+  //$contributionParam = array( $customDataDetails['fieldId']['rbc'] => $rbc_file_id,
+  //'version'  => 3 );
+ 
+  //  $result = getContributions( $contributionParam ); 
+
+  // $firstContribution = reset($result['values']);
+  // $debit_file_name = direct_debit_rbc_file_name( $firstContribution[$customDataDetails['fieldId']['date']] );
+  $debitDataSet  = $debit_file_name.' - '.$debit_file_name;
+  // $credit_file_name = direct_credit_rbc_file_name( $firstContribution[$customDataDetails['fieldId']['date']] );
+  $creditDataSet = $credit_file_name;
+  
+  require_once 'CRM/Utils/Money.php';
+  $clientNumber     = direct_debit_rbc_make_valid_lines($rbc_file, $sender['client_number'], 1, 11, 'client_number');
+  $debitService     = direct_debit_rbc_make_valid_lines($rbc_file, $debitService, 1, 3, 'debit_service');
+  $creditService    = direct_debit_rbc_make_valid_lines($rbc_file, $creditService, 1, 3, 'credit_service');
+  $clientName       = direct_debit_rbc_make_valid_lines($rbc_file, $sender['client_name'], 1, 40, 'client_name');
+  $debitHeader      = direct_debit_rbc_make_valid_lines($rbc_file, $debitHeader, 1, 50, 'debit_header');
+  $debitDataSet     = direct_debit_rbc_make_valid_lines($rbc_file, $debitDataSet, 1, 80, 'debit_data_set');
+  $creditHeader     = direct_debit_rbc_make_valid_lines($rbc_file, $creditHeader, 1, 50, 'credit_header');
+  $creditDataSet    = direct_debit_rbc_make_valid_lines($rbc_file, $creditDataSet, 1, 80, 'credit_data_set');
+  $fileCreationNo   = direct_debit_rbc_make_valid_lines($rbc_file, $sender['file_number'], 1, 4, 'file_creation_no');
+  $diskettes        = direct_debit_rbc_make_valid_lines($rbc_file, $diskettes, 1, 2, 'no_of_diskettes');
+  
+  $dollarValue        =  $summaryData['dollarValue'];
+  $debitDollarValue   =  $debitTotal;//$summaryData['debitDollarValue'];
+  $transactions       =  $summaryData['debitTrans'];
+  $masterDoners       =  $summaryData['masterDebitTrans'];
+  $creditMasterDoners =  $summaryData['masterCreditTrans'];
+  $visaDoners         =  $summaryData['visaDebitTrans'];
+  $creditVisaDoners   =  $summaryData['visaCreditTrans'];
+  $creditTransactions =  $summaryData['creditTrans']; 
+  $visaDollarsSC      =  $summaryData['visaDollarsSC'];
+  $masterDollarsSC    =  $summaryData['masterDollarsSC'];
+  $creditSC           =  $summaryData['creditSC'];
+  $visaDollars        =  $summaryData['visaDollars'];
+  $masterDollars      =  $summaryData['masterDollars'];
+  
+  // $masterDoners = $visaDoners = $masterDollars = $visaDollars = $dollarValue = $creditSC = $masterDollarsSC = $visaDollarsSC = $nsfDeducted = $negativeAmount = 0;
+  //$visaDebitTrans = $visaCreditTrans = $masterDebitTrans = $masterCreditTrans = Array();
+  
+  /* $transactions = count( array_flip( $debitTrans ) ); */
+  /* $masterDoners = count( array_flip( $masterDebitTrans ) ); */
+  /* $visaDoners   = count( array_flip( $visaDebitTrans ) ); */
+  /* $creditMasterDoners = count( array_flip( $masterCreditTrans ) ); */
+  /* $creditVisaDoners   = count( array_flip( $visaCreditTrans ) ); */
+  /* $creditTransactions =  count( array_flip( $creditTrans ) ); */
+
+  $noOfTransactions   = direct_debit_rbc_make_valid_lines($rbc_file, $transactions, 1, 19, 'no_of_transactions');
+  $creditTransactions = direct_debit_rbc_make_valid_lines($rbc_file, $creditTransactions, 1, 19, 'credit_transactions');
+  
+  // This is also the default sender for transactions ... therefore we have to set sender each time
+  /* if ( $creditTransactions >= MAX_DONOR_COUNT ) { */
+  /*   $contrSC = MAX_DONOR_FEES; */
+  /* } else { */
+  /*   $contrSC = $creditTransactions * PER_TRANSACTION_FEES; */
+  /* } */
+
+  /* if ( $creditMasterDoners >= MAX_DONOR_COUNT ) { */
+  /*   $masterContrSC = MAX_DONOR_FEES; */
+  /* } else { */
+  /*   $masterContrSC =  $creditMasterDoners * PER_TRANSACTION_FEES; */
+  /* } */
+
+  /* if ( $creditVisaDoners >= MAX_DONOR_COUNT ) { */
+  /*   $visaContrSC = MAX_DONOR_FEES; */
+  /* } else { */
+  /*   $visaContrSC   = $creditVisaDoners * PER_TRANSACTION_FEES; */
+  /* } */
+  $contrSC = $summaryGeneralCont * PER_TRANSACTION_FEES;
+  $visaSC   = $visaDollarsSC;
+  $masterSC = $masterDollarsSC;
+  $totalSC  = $contrSC + $visaSC + $masterSC;
+  $negativeAmount   = $dollarValue - $nsfDeducted - $totalSC;
+  if( $negativeAmount > 0 ) {
+    $negativeAmount = 0;
+  } 
+  $totalSC  = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $totalSC ), 1, 19, 'total_service_charge');
+  // $nsf = getPreviousNsf();
+  // foreach ( $nsf as $value ) {
+  //   if( !empty( $value ) ) {
+  //     $nsfDeducted += $value;
+  //   }
+  // }
+  
+  $nsfDeducted      = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $nsfDeducted ), 1, 19, 'nsf_deducted');
+  $dollarValue      = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $dollarValue ), 1, 19, 'dollar_value');
+  $debitDollarValue = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $debitDollarValue ), 1, 19, 'debitDollarValue');
+  $negativeAmount   = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $negativeAmount ), 1, 19, 'negative_amount');
+  $masterSC         = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $masterSC ), 1, 19, 'master_service_charge');
+  $visaSC           = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $visaSC ), 1, 19, 'visa_service_charge');
+  $masterDoners     = direct_debit_rbc_make_valid_lines($rbc_file, $creditMasterDoners, 1, 19, 'master_donors');
+  $masterDollars    = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $masterDollars ), 1, 19, 'dollar_master');
+  $visaDoners       = direct_debit_rbc_make_valid_lines($rbc_file, $creditVisaDoners, 1, 19, 'visa_donors');
+  $visaDollars      = direct_debit_rbc_make_valid_lines($rbc_file, CRM_Utils_Money::format( $visaDollars ), 1, 19, 'dollar_visa');
+  
+  $summary = array_merge( $debitHeader, $creditHeader, $clientNumber, $debitService, $creditService, $clientName, $debitDataSet, $creditDataSet, $noOfTransactions, $dollarValue, $debitDollarValue, $fileCreationNo, $diskettes, $masterDoners, $masterDollars, $visaDoners, $visaDollars, $totalSC, $masterSC, $visaSC, $nsfDeducted, $negativeAmount, $creditTransactions );
+  
+  $rbc_file->addTransactions( $summary, null );
+  $output = $rbc_file->getFileSummary(  );
+  
+  require_once 'CRM/Utils/PDF/Utils.php';
+  require_once 'CRM/Utils/File.php';
+  $config =& CRM_Core_Config::singleton( );
+  $pdf_filename = CRM_Utils_File::makeFileName( time().'.pdf' );
+  $pdf =  CRM_Utils_PDF_Utils::html2pdf( $output,
+                                         $pdf_filename,
+                                         true, 'Letter'                                                                     
+                                         );
+  
+  if (empty($pdf)) {
+    drupal_set_message(t('Unknown Error occurred. The Summary file could not be created. Please check the direct debit configuration or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+
+
+  // create file
+  $file_name = $config->customFileUploadDir . $pdf_filename;
+  file_put_contents( $file_name, $pdf );
+  return $file_name;
+}
+
+function getDebitTransaction ( $contributionValue ) {
+  $accountDetails = getAccountColumns();
+
+  if( array_key_exists( $accountDetails['fieldId']['bank'], $contributionValue ) ) {
+    $bankNumber = $contributionValue[$accountDetails['fieldId']['bank']];
+  } else {
+    $bankNumber = "";
+  }
+  if( array_key_exists( $accountDetails['fieldId']['branch'], $contributionValue ) ) {
+    $branchNumber = $contributionValue[$accountDetails['fieldId']['branch']];
+  } else {
+    $branchNumber = "";
+  }      
+  if( array_key_exists( $accountDetails['fieldId']['account'], $contributionValue ) ) {
+    $accountNumber = $contributionValue[$accountDetails['fieldId']['account']];
+  } else {
+    $accountNumber = "";
+  } 
+  return $bankNumber.''.$branchNumber.''.$accountNumber;
+
+}
+
+function getTransactions( $id ) {
+  $formatedTree = array();
+  $getRelationParam = array( 'version' => 3,
+                             'contact_id' => $id );
+  require_once 'api/api.php';
+  require_once 'CRM/Utils/Array.php';
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $result = civicrm_api( 'relationship','get', $getRelationParam );
+  foreach( $result['values'] as $resultKey => $resultValue ){
+    if( $resultValue[ 'relationship_type_id' ] != SUPPORTER_RELATION_TYPE_ID ){
+      unset( $result['values'][$resultKey] );
+    } else {
+      $result['id'] = $resultValue['id'];
+    }
+  }
+
+  $account_custom_group_id = ORGANIZATION_ACCOUNT_CUSTOM_GROUP_ID;
+  $customForm = null;
+  if( array_key_exists( 'id', $result ) && array_key_exists( 'values', $result ) && !empty( $result['values'] ) ) {
+    $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Organization', $customForm, $result['values'][ $result['id'] ]['contact_id_b'] , $account_custom_group_id );
+    $formatedTree = CRM_Core_BAO_CustomGroup::formatGroupTree( $groupTree, 1, $customForm );
+    $formatedTree = current($formatedTree);
+  }
+  $accountDetails = array();
+  if( array_key_exists( 'fields', $formatedTree ) ){
+    foreach( $formatedTree['fields'] as $treeKey => $treeValue ){
+      if( strstr( $treeValue['column_name'], 'bank_number' )){
+        $accountDetails['bank'] = CRM_Utils_Array::value( 'element_value', $treeValue );
+      } else if( strstr( $treeValue['column_name'], 'account_number' )){
+        $accountDetails['account'] = CRM_Utils_Array::value( 'element_value', $treeValue );
+      } else if( strstr( $treeValue['column_name'], 'branch_number' )){
+        $accountDetails['branch'] = CRM_Utils_Array::value( 'element_value', $treeValue );
+      }
+    }
+  }
+    
+  if( array_key_exists( 'bank', $accountDetails ) ){
+    $creditBankNumber = $accountDetails['bank'];
+  } else {
+    $creditBankNumber = "";
+  }
+    
+  if( array_key_exists( 'branch', $accountDetails ) ){
+    $creditBranchNumber = $accountDetails['branch'];
+  } else {
+    $creditBranchNumber = "";
+  }      
+    
+  if( array_key_exists( 'account', $accountDetails ) ){
+    $creditAccountNumber = $accountDetails['account'];
+  } else {
+    $creditAccountNumber = "";
+  }
+  return  $creditBankNumber.''.$creditBranchNumber.''.$creditAccountNumber;
+}
+
+/**
+ * Create the rbc file name
+ *
+ * @param string $date 
+ * @param string $position 
+ * @return void
+ */
+function direct_debit_rbc_file_name($date) {
+  require_once 'CRM/Utils/File.php';
+  $file_name  = check_plain(variable_get('direct_debit_rbc_file_prefix', ''));
+  $file_name .= '_'. date( 'Y-m-d H:i:s', strtotime( $date ) );
+  $file_name .= '.rbc';
+  return $file_name;
+}
+
+/**
+ * Create the rbc file name
+ *
+ * @param string $date 
+ * @param string $position 
+ * @return void
+ */
+function direct_credit_rbc_file_name($date) {
+  require_once 'CRM/Utils/File.php';
+  $file_name  = check_plain(variable_get('direct_credit_rbc_file_prefix', ''));
+  $file_name .= '_'. date( 'Y-m-d H:i:s', strtotime( $date ) );
+  $file_name .= '.rbc';
+  return $file_name;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function direct_debit_block($op = 'list', $delta = 0, $edit = array()) {
+  if (!user_access('access direct debit')) {
+    return;
+  }
+  switch ($op) {
+  case 'list':
+    $blocks[0] = array(
+                       'info'       => t('Number of pending transactions.'),
+                       );
+    // // A block can provide default settings. In this case we'll enable the 
+    // // block and make it visible only on the 'node/*' pages. 
+    // $blocks[1] = array(
+    //   'info'       => t('Example: empty block'),
+    //   'status'     => TRUE,
+    //   'weight'     => 0,
+    //   'visibility' => 1,
+    //   'pages'      => 'node/*',
+    // );
+    return $blocks;
+    // case 'configure':
+    //   $form = array();
+    //   return $form;
+    // case 'save':
+    //   // If $op is "save", we need to save settings from the configuration form.
+    //   // Since the first block is the only one that allows configuration, we
+    //   // need to check $delta to make sure we only save it.
+    //   if ($delta == 0) {
+    //     // Have Drupal save the string to the database.
+    //     variable_set('block_example_string', $edit['block_example_string']);
+    //   }
+    //   return;
+  case 'view': default:
+    switch ($delta) {
+    case 0:
+      // The subject is displayed at the top of the block. Note that it
+      // should be passed through t() for translation.
+      $block['subject'] = t('Direct Debit Management');
+      $block['content'] = direct_debit_block_content();
+      break;
+    }
+    return $block;
+  }
+}
+
+/**
+ * Provide the content for the direct debit block
+ *
+ * @return string $output: content of the block
+ */
+function direct_debit_block_content() {
+  $count = direct_debit_admin_count_pending_contributions();
+  
+  $output = theme('direct_debit_block_content', array('count' => $count));
+  
+  return $output;
+}
+
+/**
+ * Theme the direct debit block output
+ *
+ * @ingroup themeable
+ * @return string $output themed output
+ */
+function theme_direct_debit_block_content($vars) {
+  $output = '<div class="direct_debit_count">'. format_plural($vars['count'],
+    'There is 1 pending contribution.',
+    'There are @count pending contributions.', array()) .'</div>';
+  $output .='<div class="direct_debit_link">' . l(t('Direct Debit Management'), 'direct_debit') .'</div>';
+  
+  return $output;
+}
+
+/**
+ * Updates the contribution_status_id in the direct debit table.
+ *
+ * @param int $status contribution_status_id
+ * @param array $checked_tx array of trxn_id's
+ * @return int count of affected rows
+ */
+function direct_debit_admin_update_status($status, $checked_tx) {
+  global $user;
+  $date_now = time();
+  
+  if (!direct_debit_get_contribution_status($status, FALSE, FALSE)) {
+    drupal_set_message(t('Unknown update status.'));
+    return 0;  
+  }
+  
+  // build the common query parts, which are equal for all trxn_id
+  $query = "UPDATE {direct_debit} SET contribution_status_id = %d"; 
+  $query_args = array($status);
+  $query_where = " WHERE trxn_id = '%s' ";
+  $query_where_args = array();
+  
+  // update status only for status_id 1, 3, 4  ... for 5 it's done while creating the dta and 2 never
+  switch ($status) {
+    case 1: // complete
+      $query .= " , confirmation_date = %d, confirmation_by_user = %d";
+      // we only want so complete pending transactions
+      $query_where .= " AND contribution_status_id = 5";
+      $query_args[] = $date_now;
+      $query_args[] = $user->uid;
+      break;
+    case 3: // cancel
+      $query .= " , cancel_date = %d, cancel_by_user = %d";
+      $query_args[] = $date_now;
+      $query_args[] = $user->uid;
+      break;
+    case 4: // failed
+      $query .= " , failed_date = %d, failed_by_user = %d";
+      $query_args[] = $date_now;
+      $query_args[] = $user->uid;
+      break;
+    case 5: // in_progress
+    case 2: // pending
+      // we never want to set state to in_progress or pending 
+      return 0;
+  }
+  
+  $success = $error = array();
+  foreach($checked_tx as $key => $trxn_id) {
+    // build the dynamic query parts, which are depending to the trxn_id
+    $query_where_args = array($trxn_id);
+        
+    // run update query and count affected rows
+    $query_args_merged = array_merge($query_args, $query_where_args);
+    $result = db_affected_rows(db_query($query . $query_where, $query_args_merged));
+    
+    if(!$result) {
+      $error['direct_debit'][] = $trxn_id;
+      continue;
+    }
+    
+    // run civicrm status update
+    $result = direct_debit_pp_update_civicrm_status($trxn_id, $status);
+    
+    // only invoke civicrm update only if local update was successful
+    if (!$result) {
+      $error['civicrm'][] = $trxn_id;
+      continue;
+    }
+    
+    // send mail for each successful completed contribution
+    if (1 == $status) {
+      $result = direct_debit_admin_send_confirmation_mail($trxn_id);
+      
+      if (!$result) {
+        $error['mail'][] = $trxn_id;
+        continue;
+      }
+    }
+    
+    // no errors
+    $success[] = $trxn_id;  
+  } // end foreach
+  
+  return array('success' => $success, 'errors' => $error);
+}
+
+/**
+ * Set the year range: from the actual year to the next 3 years.
+ *
+ * @param array $form_element 
+ * @return array $form_element
+ */
+function direct_debit_update_expiration_set_year_range($form_element) {
+  $current_year = date('Y');
+  $form_element['year']['#options'] = drupal_map_assoc(range($current_year, $current_year + 3));
+  return $form_element;
+}
+
+/**
+ * Get the country name corresponding to a given country iso code
+ * 
+ * If the second argument gets passed the function will return the state/province name otherwise the
+ * country name will be returned.
+ * 
+ * @param string $country_code ISO Country Code
+ * @param string $state_province_code state/province code if we want the state/province name 
+ * @return string $name name of country (state_province_code) or if not found code or state_province name
+ */
+function direct_debit_get_country_state_province_name($country_code, $state_province_code = '') {
+  $country = array(
+    'DE' => array(
+      'name' => t('Germany'),
+      'state_province' => array(
+        'BB' => t('Brandenburg'),
+        'BR' => t('Berlin'),
+        'BW' => t('Baden-Württemberg'),
+        'BY' => t('Bavaria'),
+        'HB' => t('Bremen'),
+        'HE' => t('Hesse'),
+        'HH' => t('Hamburg'),
+        'NI' => t('Lower Saxony'),
+        'MV' => t('Mecklenburg-Western Pomerania'),
+        'NW' => t('North Rhine-Westphalia'),
+        'RP' => t('Rhineland-Palatinate'),
+        'SH' => t('Schleswig-Holstein'),
+        'SL' => t('Saarland'),
+        'SN' => t('Saxony'),
+        'ST' => t('Saxony-Anhalt'),
+        'TH' => t('Thuringia'),
+      ),
+    ),
+  );
+  
+  if (!array_key_exists($country_code, $country)) {
+    if (!empty($state_province_code)) {
+      return $state_province_code;
+    }
+
+    return $country_code;
+  }
+    
+  if (!array_key_exists($state_province_code, $country[$country_code]['state_province'])) {
+    return $country[$country_code]['name'];
+  }
+  
+  return $country[$country_code]['state_province'][$state_province_code];
+}
+
+function direct_debit_admin_send_confirmation_mail($trxn_id) {
+  global $language;
+  
+  $data = array();
+  
+  if('preview' != $trxn_id) {
+    $data = db_fetch_array(db_query("SELECT organization_name, first_name, last_name, amount, currency_id, 
+                                      receive_date, street, postal_code, city, email
+                                     FROM {direct_debit}
+                                     WHERE trxn_id = '%s'", $trxn_id));
+  } else {
+    $data = array(
+                  'organization_name' => t('[Organization name]'),
+                  'first_name'        => t('[First name]'),
+                  'last_name'         => t('[Last name]'),
+                  'street'            => t('[Street Address]'),
+                  'postal_code'       => t('[Postal Code]'),
+                  'city'              => t('[City]'),
+                  'amount'            => t('[Amount]'),
+                  'currency_id'       => 'EUR',
+                  'receive_date'      => time(),
+                  );
+  }
+  
+  if (!$data) {
+    drupal_set_message(t('Could not send mail for contribution with Transaction ID %trxn_id.'), array('%trxn_id' => $trxn_id), 'error');
+    return;
+  }
+  
+  if (empty($data['email']) && 'preview' != $trxn_id) {
+    drupal_set_message(t('Could not send mail for contribution with Transaction ID %trxn_id, because the email is missing.'), array('%trxn_id' => $trxn_id), 'error');
+    return;    
+  }
+  
+  $vars['subject'] = check_plain(variable_get('direct_debit_admin_mail_subject', ''));
+  
+  $vars['header'] = check_plain(variable_get('direct_debit_admin_mail_header', ''));
+  $vars['footer'] = check_plain(variable_get('direct_debit_admin_mail_footer', ''));
+
+  $vars['issuer']['description'] = t('Name and Address of the issuer:');
+  $vars['issuer']['content']['name'] = check_plain(variable_get('direct_debit_admin_issuer_name', ''));
+  $vars['issuer']['content']['street'] = check_plain(variable_get('direct_debit_admin_issuer_street', ''));
+
+
+  $vars['contributor']['description'] = t('Name and Address of the contributor:');
+  $vars['contributor']['content']['organization_name'] = $data['organization_name'];
+  $vars['contributor']['content']['name'] = $data['first_name'] .' '. $data['last_name'];
+  $vars['contributor']['content']['street'] = $data['street'];
+  $vars['contributor']['content']['city'] = $data['postal_code'] .' '. $data['city'];
+
+  $vars['amount_numeric']['description'] = t('Numeric value of contribution:');
+  $vars['amount_numeric']['content'] = $data['amount'] .' '. $data['currency_id'];
+  $vars['date']['description'] = t('Date of contribution:');
+  $vars['date']['content'] = format_date($data['receive_date'], 'small');
+
+  $to = $data['email'];
+  $from = check_plain(variable_get('direct_debit_admin_mail_from', NULL));
+
+  $message = drupal_mail('direct_debit', 'confirmation', $to, $language, $vars, $from, FALSE);
+  
+  // in preview mode just return the mail body
+  if ('preview' == $trxn_id) {
+    return $message['body'];
+  }
+  
+  $result = drupal_mail_send($message);
+  // Log errors
+  if (!$result) {
+    watchdog('mail', 'Error sending e-mail (from %from to %to).', array('%from' => $from, '%to' => $to), WATCHDOG_ERROR);
+    drupal_set_message(t('Could not send mail for contribution with Transaction ID %trxn_id.', 
+                         array('%trxn_id' => $trxn_id)), 'error');
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function direct_debit_mail($key, &$message, $vars) {  
+  switch($key) {
+  case 'confirmation':
+    $message['subject'] = $vars['subject'];
+    // create output by using template
+    $message['body'] = theme('direct_debit_admin_mail', $vars);   
+    break;
+  }
+}
+
+/**
+ * Update the contribution status in CiviCRM
+ *
+ * @param string $trxn_id transaction ID (todo testing: DD932E)
+ * @param int $contribution_status_id  contribution status ID
+ * @param int $date unix timestap
+ * @return boolean TRUE if update was successful, otherwise FALSE
+ */
+function direct_debit_pp_update_civicrm_status( $contributionId, $contribution_status_id, $params = array() ) {
+  if (!module_exists('civicrm')) {
+    return FALSE;
+  }
+
+  if( empty( $params ) ){
+    $contributionParam = array( 'version'         => 3,
+                               'contribution_id' => $contributionId );
+    $result = civicrm_api( 'contribution', 'get', $contributionParam );
+    $params = $result['values'][ $contributionId ];
+  }
+  require_once "CRM/Core/DAO.php";
+  CRM_Core_DAO::freeResult();
+  
+  if (empty($params)) {
+    return FALSE;
+  }
+  
+  // $params['contribution_status_id'] = $contribution_status_id;
+  // $params['net_amount']             = $params['total_amount'];
+  
+  $params['version']    = 3;
+  $newInstallmentParams = $params;
+  unset( $newInstallmentParams[ 'id' ] );
+  unset( $newInstallmentParams[ 'contribution_id' ] );
+  $customDataDetails = getRBCColumns();
+  foreach( $customDataDetails['fieldId'] as $fields ){
+      unset( $newInstallmentParams[ $fields ] );
+  }
+  $newInstallmentParams['trxn_id'] = $newInstallmentParams['invoice_id'] = md5(uniqid(rand(), TRUE));
+  $newInstallmentParams['contribution_status_id'] = 5;
+  $newInstallmentParams['receive_date'] = date( 'Y-m-d H:i:s', strtotime( $newInstallmentParams['receive_date'] ." + 1 month" ) );
+  // require_once 'CRM/Core/Payment/DirectDebit.php';
+  // $updateResult = CRM_Core_Payment_DirectDebit::changeContributionState( $params );
+  $updateResult = array();
+  $result = civicrm_api( 'contribution', 'create', $newInstallmentParams );
+  require_once "CRM/Core/DAO.php";
+  CRM_Core_DAO::freeResult();
+  
+  //Added code to add lineitems for new contribution being created--02-02-12
+  require_once 'CRM/Price/BAO/LineItem.php';
+  $lineItems = array();
+  $lineItems = CRM_Price_BAO_LineItem::getLineItems( $contributionId, 'contribution' );
+  $countKey  = 1;
+  $lineSets  = array();
+  require_once 'CRM/Price/DAO/Field.php';
+  if ( !empty($lineItems) ) {
+      foreach( $lineItems as $key => $value ) {
+          $pricesetID     = new CRM_Price_DAO_Field();
+          $pricesetID->id = $value['price_field_id'];
+          $pricesetID->find(true);
+          $lineSets[$pricesetID->price_set_id ][$countKey] = $value;
+          $countKey++;
+      }
+  }
+  require_once "CRM/Contribute/Form/AdditionalInfo.php";
+  CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSets );
+  //End of code
+
+  return $result;
+}
+
+function getActivityFileColumns() {
+  $file_custom_group_id = HTML_FILE_CUSTOM_GROUP_ID;
+  $activity_type_id = EXPORT_RBC_ACTIVITY_TYPE_ID;
+  $customForm = null;
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Activity', $customForm, null, $file_custom_group_id , $activity_type_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ){
+    if( strstr( $tableKey, 'rbc_credit_file' ) ){
+      $customColumn['rbc_credit_file'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['rbc_credit_file'] );
+      $customField['rbc_credit_file'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'rbc_debit_file' ) ){
+      $customColumn['rbc_debit_file'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['rbc_debit_file'] );
+      $customField['rbc_debit_file'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'summary_file' ) ){
+      $customColumn['summary_file'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['summary_file'] );
+      $customField['summary_file'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+function getReturnedFileColumns( ) { 
+  $file_custom_group_id = RETURNED_FILE_CUSTOM_GROUP_ID;
+  $activity_type_id = IMPORT_RBC_ACTIVITY_TYPE_ID;
+  $customForm = null;
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Activity', $customForm, null, $file_custom_group_id , $activity_type_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ) {
+    if ( strstr( $tableKey, 'total_error_message' ) ) {
+      $customColumn['total_error_message'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['total_error_message'] );
+      $customField['total_error_message'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if ( strstr( $tableKey, 'total_debit_records' ) ) {
+      $customColumn['total_debit_records'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['total_debit_records'] );
+      $customField['total_debit_records'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if ( strstr( $tableKey, 'total_credit_records' ) ) {
+      $customColumn['total_credit_records'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['total_credit_records'] );
+      $customField['total_credit_records'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if ( strstr( $tableKey, 'total_transactions' ) ) {
+      $customColumn['total_transactions'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['total_transactions'] );
+      $customField['total_transactions'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if ( strstr( $tableKey, 'total_number_of_returned_records' ) ) {
+      $customColumn['total_number_of_returned_records'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['total_number_of_returned_records'] );
+      $customField['total_number_of_returned_records'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if ( strstr( $tableKey, 'records_in_import_file' ) ) {
+      $customColumn['records_in_import_file'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['records_in_import_file'] );
+      $customField['records_in_import_file'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+function getReturnedContributionsColumns( ) { 
+  $file_custom_group_id = RETURNED_CONTR_CUSTOM_GROUP_ID;
+  $activity_type_id = RETURNED_RECORDS_ACTIVITY_TYPE_ID;
+  $customForm = null;
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Activity', $customForm, null, $file_custom_group_id , $activity_type_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ) {
+    if ( strstr( $tableKey, 'contributions' ) ) {
+      $customColumn['contributions'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['contributions'] );
+      $customField['contributions'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+function getErrorContributionsColumns( ) { 
+  $file_custom_group_id = ERROR_CONTR_CUSTOM_GROUP_ID;
+  $activity_type_id = ERROR_RECORDS_ACTIVITY_TYPE_ID;
+  $customForm = null;
+  civicrm_initialize();
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Activity', $customForm, null, $file_custom_group_id , $activity_type_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ) {
+    if ( strstr( $tableKey, 'error_contributions' ) ) {
+      $customColumn['error_contributions'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['error_contributions'] );
+      $customField['error_contributions'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+function isAlreadyExported() {
+    civicrm_initialize();
+    $customDataDetails = getRBCColumns();
+    $query = "SELECT * FROM {$customDataDetails[ 'table' ]} where month(current_date()) =  month({$customDataDetails['columns']['date']})";
+    $dao   = CRM_Core_DAO::executeQuery( $query );
+    return 0;
+    return $dao->N;
+}
+
+function getNSFColumns() {
+  civicrm_initialize();  
+  $rbc_custom_group_id = NSF_CUSTOM_GROUP_ID;
+  $customForm = null;
+  require_once 'CRM/Core/BAO/CustomGroup.php';
+  $groupTree = CRM_Core_BAO_CustomGroup::getTree( 'Contribution', $customForm, null, $rbc_custom_group_id );
+  $customTable =  key($groupTree['info']['tables']);
+  foreach( current($groupTree['info']['tables'] ) as $tableKey => $tableValue  ){
+    if( strstr( $tableKey, 'nsf' ) ){
+      $customColumn['nsf'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['nsf'] );
+      $customField['nsf'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+    if( strstr( $tableKey, 'removal' ) ){
+      $customColumn['removal'] = $tableKey;
+      $emplodedColumn = explode( '_', $customColumn['removal'] );
+      $customField['removal'] = "custom_{$emplodedColumn[count($emplodedColumn) - 1]}";
+    }
+   
+  }
+  return array( 'table' => $customTable,'columns' => $customColumn, 'fieldId' => $customField );
+}
+
+/**
+ * @return array of contribtions and amount
+ */
+
+function getPreviousNsf( ) {
+  civicrm_initialize();  
+  $nsfDataDetails = getNSFColumns();
+  $nsf = array();
+  //calculate nsf
+  $getNSFContributions = array( 'version'  =>  3,
+                                $nsfDataDetails[ 'fieldId' ][ 'nsf' ] => 1 );
+
+  $nsfResult = civicrm_api( 'contribution','get', $getNSFContributions );
+  foreach( $nsfResult[ 'values' ] as $nsfId => $nsfValue ){
+    $nsf[ $nsfId ] = $nsfValue[ 'total_amount' ];
+  }
+  require_once "CRM/Core/DAO.php";
+  CRM_Core_DAO::freeResult();
+  return $nsf;
+}
+
+function getContributions( $params = array() , $offset = null, $rowCount = null ) {
+  //$offset = 0;
+  //$contributions = array();
+  //$rows = 1;
+  //while( $rows != 0 ){
+  
+  if ( !empty($offset) ) {
+    $params[ 'offset' ]   = $offset;
+  }
+  if ( !empty($rowCount) ) {
+    $params[ 'rowCount' ] = $rowCount;
+  }
+
+  $result = civicrm_api( 'contribution','get',$params );
+  // if( $offset == 0 ){
+  //  $contributions = $result;
+  //  unset( $contributions[ 'values' ] );
+  //  $contributions[ 'values' ] = array();
+  //}
+  //if( $result[ 'count' ] != 0 ){
+  //  $contributions[ 'values' ] = $contributions[ 'values' ] + $result[ 'values' ];
+  //}
+  //$offset += 1000;
+  //$rows = $result[ 'count' ];
+  //}
+  //$contributions[ 'count' ] = count($contributions[ 'values' ]);
+  return $result;
+}
+
+function convertDate( $date = NULL ) {
+  $rbc_date = explode(RBC_DATE,'-');
+  $date = $rbc_date[0].'-'.$rbc_date[1].'-21';
+  
+  if( $date ){
+    $year = date( 'Y', strtotime( $date ) );
+    $day  = str_pad(date( 'z', strtotime( $date ) ), 3, 0, STR_PAD_LEFT  ); 
+    $cnDate = $year . '' . $day;
+  } else {
+    if( TEST_EXPORT ) {
+      $year = date('Y', strtotime( date('Y').'-'.date('m').'-'.date('d') ));
+      $day  = str_pad( date('z', strtotime( date('Y').'-'.date('m').'-'.date('d') )), 3, 0, STR_PAD_LEFT  );
+    } else {
+      $year = date('Y', strtotime( date('Y').'-'.date('m').'-'.date('d') ));
+      $day  = str_pad( date('z', strtotime( date('Y').'-'.date('m').'-20 00:00:00' )), 3, 0, STR_PAD_LEFT  );
+    }
+    $cnDate = $year . '' . $day;
+  }
+  return $cnDate;
+}

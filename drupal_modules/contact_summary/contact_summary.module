@@ -78,9 +78,23 @@ function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
     if ( $objectName == 'contact' ) {
         foreach ( $tasks as $key => $value ) {
             if ( $key != 6 && $key != 8 && $key != 15 && $key != 16 ) {
-                unset( $tasks[$key] );
+              unset( $tasks[$key] );
             }
         }
+        
+        $classNames = array();
+        $count = CRM_Core_Session::singleton()->get('numberOfContacts');
+        if ($count) {
+          for ($i =0; $i < $count; $i++) {
+            $classNames['houseHold_' . $i] = array( 'className' => 'CRM_Contact_Form_Task_Household_BankingInfo'); 
+          }
+        }
+        
+        $tasks[] = array(
+          'title' => 'Merge into one household',
+          'class' => array('CRM_Contact_Form_Task_Household_Merge') + $classNames,
+          'result' => NULL,
+        );
     }
 }
 
@@ -521,6 +535,54 @@ function contact_summary_civicrm_pageRun( &$page ) {
             $customFields[$serviceFees->id] = $serviceFees->name;
         }
         $smarty =  CRM_Core_Smarty::singleton( );
+        // UCCPAR-375
+        $contactID = $page->getVar('_id');
+        $query = "SELECT b.id, b.contact_id_a contact_id, cc.sort_name, b.relationship_type_id FROM civicrm_relationship a 
+INNER JOIN civicrm_relationship b ON a.contact_id_b = b.contact_id_b
+INNER JOIN civicrm_contact cc on b.contact_id_a = cc.id
+WHERE a.contact_id_a = {$contactID} AND b.contact_id_a != {$contactID}
+AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD . ") AND a.is_active = 1 AND b.is_active = 1";
+        $dao = CRM_Core_DAO::executeQuery($query);
+        $contacts = NULL;
+        $deleteExtra = 'Are you sure you want to remove this contact from household?';
+        $links = array(
+          array(
+            'name' => ts('Create household'),
+            'url' => 'civicrm/',
+            'qs' => 'reset=1',
+            'extra' => 'onclick = "return createHousehold(' . BANKING_DETAILS_PROFILE_ID . ', %%cid%%);"',
+            'title' => ts('Create a new household'),
+          ),
+          CRM_Core_Action::DELETE => array(
+            'name' => ts('Remove from household'),
+            'url' => 'civicrm/contact/view/rel',
+            'qs' => 'action=disable&reset=1&cid=%%cid%%&id=%%id%%&rtype=%%rtype%%',
+            'extra' => 'onclick = " return confirm(\'' . $deleteExtra . '\')"',
+            'title' => ts('Remove contact from household'),
+          ),
+        );
+        $mask = array();
+        
+        while ($dao->fetch()) {
+          $replace = array(
+            'id' => $dao->id,
+            'rtype' => 'a_b',
+            'cid' => $dao->contact_id,
+          );
+          $link = '';
+          if ($dao->relationship_type_id != HEAD_OF_HOUSEHOLD) {
+            $link = CRM_Core_Action::formLink($links, $mask, $replace);
+          }
+          $contacts .= "<tr><td>" . l($dao->sort_name, 'civicrm/contact/view', array('query' => array('reset' => 1, 'cid' => $dao->contact_id))) . "</td><td>" . $link . "</td></tr>";
+        }
+        
+        if (!empty($contacts)) {
+          $vars = & $smarty->get_template_vars('profileFields');
+          $vars['houseHold'] = array(
+            'label' => ts('Other Members of Household'), 
+            'value'=> "<table>" . $contacts . "</table>",
+          );
+        }
         foreach ( $smarty->_tpl_vars['profileFields'] as $key => $value ) {
             if ( strstr( $key, 'custom' ) ) {
                 if (strstr( $value['label'], 'audit number' ) ) {
@@ -1087,6 +1149,10 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
       $denominationAdmin = getDenominationAdmin( $relationResult[ 'values' ][ $id ][ 'contact_id_b' ] );
       createActivity( DENOMINATION_NEEDS_ADMIN_ACTIVITY_ID, $relationResult[ 'values' ][ $id ][ 'contact_id_a' ], getSysAdmins(), $relationResult[ 'values' ][ $id ][ 'contact_id_b' ], 'Denomination needs admin' );
     }
+    if ($relationResult['values'][$id]['relationship_type_id'] == MEMBER_OF_HOUSEHOLD 
+      || $relationResult['values'][$id]['relationship_type_id'] == HEAD_OF_HOUSEHOLD) {
+      mergeContacts($relationResult['values'][$id]['contact_id_a'], $relationResult['values'][$id]['contact_id_b']);
+    }
   }
 }
 
@@ -1094,7 +1160,7 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
     if( $formName == 'CRM_Profile_Form_Edit' && ( $form->getVar( "_gid" ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) ) {
         
         $session = CRM_Core_Session::singleton();
-        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'resest=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
+        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'reset=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
     } else if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
         $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
         $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
@@ -1371,13 +1437,23 @@ function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef 
         $result = civicrm_api( 'group_contact', 'delete', $removeGroupContactParam );
         createActivity( DENOMINATION_ADMIN_RELATION_TYPE_ID, $objectRef->contact_id_b, getSysAdmins(), $objectRef->contact_id_a, 'Denomination needs admin' );
     }
+    if ($objectName == 'Profile' && CRM_Utils_Array::value('uf_group_id', $objectRef, NULL) == BANKING_DETAILS_PROFILE_ID) {
+      if (!$objectId) {
+        return FALSE;
+      }
+      require_once('CRM/Contact/Form/Task/Household.php');
+      // update household name
+      $hID = CRM_Core_DAO::singleValueQuery('SELECT contact_id_b FROM civicrm_relationship WHERE relationship_type_id = ' . MEMBER_OF_HOUSEHOLD . ' AND contact_id_a = ' . $objectId);
+      
+      mergeContacts($objectId, $hID);
+    }
 }
 
 function contact_summary_civicrm_validate( $formName, &$fields, &$files, &$form ) {
     if ( $formName == 'CRM_Profile_Form_Edit' ) {
         if ( $form->getVar( '_gid' ) == CONTACT_PROFILE_ID ) {
             if ( !empty ( $form->_submitValues['postal_code-Primary'] ) ) {
-                $errors = array( ); 
+                $errors = array( );
                 if ( $form->_submitValues['country-Primary'] == 1039 || empty( $form->_submitValues['country-Primary'] ) ) {
                 
                     if ( !( preg_match("/[a-zA-Z][0-9][a-zA-Z][\\s][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 7 ) && !( preg_match("/[a-zA-Z][0-9][a-zA-Z][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 6 ) ) {
@@ -1406,6 +1482,16 @@ function contact_summary_civicrm_validate( $formName, &$fields, &$files, &$form 
                 unset( $form->_errors[ 'name' ] );
             }
         }
+    }
+    if ($formName == 'CRM_Contact_Form_Search_Custom' && $form->getVar('_customSearchID') == 16
+      && CRM_Utils_Array::value('task' , $fields) == 25) {
+      
+      foreach ($fields as $name => $value) {
+        if (substr($name, 0, CRM_Core_Form::CB_PREFIX_LEN) == CRM_Core_Form::CB_PREFIX) {
+          $contactID = substr($name, CRM_Core_Form::CB_PREFIX_LEN);
+          // check UCCPAR-375 a i)
+        }
+      }
     }
 }
 
@@ -1581,4 +1667,78 @@ group by cct.label";
         $summary['funds'][$dao->label]  = $dao->label;
     }
     return $summary;
+}
+
+/*
+ * hook_civicrm_contactListQuery
+ * to search organization contacts which has relationship type as Supporter of
+ * while adding contribution type
+ */
+function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id) {
+  
+  // restriction for organization those having the suppoter relationship.
+  $pc = CRM_Utils_Array::value('pc', $_GET);
+  if (!empty($pc)) {
+    $query = " 
+        SELECT DISTINCT(id), data, sort_name , email, phone, state_province, country
+        FROM   (
+            ( SELECT 0 as exactFirst, cc.id as id, CONCAT_WS( ' :: ', sort_name, email, phone, street_address, city, ste.name, coy.name ) as data , sort_name, email, phone, street_address, city, ste.name as state_province, coy.name as country
+            FROM   civicrm_contact cc LEFT JOIN civicrm_email eml ON ( cc.id = eml.contact_id AND eml.is_primary = 1 )  LEFT JOIN civicrm_phone phe ON ( cc.id = phe.contact_id AND phe.is_primary = 1 )  LEFT JOIN civicrm_address sts ON ( cc.id = sts.contact_id AND sts.is_primary = 1)   LEFT JOIN civicrm_state_province ste ON ( sts.state_province_id = ste.id  )   LEFT JOIN civicrm_country coy ON ( sts.country_id = coy.id  ) LEFT JOIN civicrm_relationship as cr ON ( cc.id = cr.contact_id_b AND cr.relationship_type_id = 13) 
+    
+     
+     WHERE ( email LIKE '" . $name . "' OR sort_name LIKE '" . $name . "'  )  AND cc.is_deleted = 0  AND contact_type = 'Organization'  AND cr.is_active = 1
+    LIMIT 0, 10 )
+    UNION
+    ( SELECT 1 as exactFirst, cc.id as id, CONCAT_WS( ' :: ', sort_name, email, phone, street_address, city, ste.name, coy.name ) as data , sort_name, email, phone, street_address, city, ste.name as state_province, coy.name as country
+    FROM   civicrm_contact cc LEFT JOIN civicrm_email eml ON ( cc.id = eml.contact_id AND eml.is_primary = 1 )  LEFT JOIN civicrm_phone phe ON ( cc.id = phe.contact_id AND phe.is_primary = 1 )  LEFT JOIN civicrm_address sts ON ( cc.id = sts.contact_id AND sts.is_primary = 1)   LEFT JOIN civicrm_state_province ste ON ( sts.state_province_id = ste.id  )   LEFT JOIN civicrm_country coy ON ( sts.country_id = coy.id  ) LEFT JOIN civicrm_relationship as cr ON ( cc.id = cr.contact_id_b AND cr.relationship_type_id = 13)
+    
+     
+     WHERE ( email LIKE '%" . $name . "%' OR sort_name LIKE '%" . $name . "%'  )  AND cc.is_deleted = 0  AND contact_type = 'Organization'  AND cr.is_active = 1
+    ORDER BY sort_name
+    LIMIT 0, 10 )
+) t
+ORDER BY exactFirst, sort_name
+LIMIT    0, 10";
+  }
+}
+
+function updateContactExtIdentifier($contactId) {
+  $maxExtId = CRM_Core_DAO::singleValueQuery("SELECT max(cast(SUBSTRING_INDEX(REPLACE(external_identifier, 'D-', ''),'-',1) as unsigned))  FROM civicrm_contact
+WHERE external_identifier LIKE 'D-%';");
+  if ($maxExtId < MAX_EXTERNAL_ID) {
+    $maxExtId = MAX_EXTERNAL_ID;
+  }
+  else {
+    $maxExtId++;
+  }  
+  CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactId, 'external_identifier', 'D-' . $maxExtId);
+}
+
+function mergeContacts($contactA, $contactB, $postHook = TRUE) {
+  require_once('CRM/Contact/Form/Task/Household.php');
+  if ($postHook) {
+    // disable relationship to household
+    CRM_Contact_Form_Task_Household::createRelationship($contactA);
+  }
+  $query = "SELECT cc.first_name, cc.last_name, cc.id FROM civicrm_relationship cr INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a WHERE cr.contact_id_b = " . $contactB . " AND cr.is_active = 1 AND cc.is_deleted = 0 AND cc.id <> {$contactA}";
+  $dao = CRM_Core_DAO::executeQuery($query);
+  
+  if ($dao->N > 1) {
+    CRM_Contact_Form_Task_Household::createHouseHoldName($query, $contactB);
+  }
+  elseif($dao->fetch()) {
+    // soft delete household
+    $params = array(
+      'contact_id' => $contactB,
+      'contact_type' => 'Household',
+      'external_identifier' => NULL,
+      'is_deleted' => 1,
+      'version' => 3,
+    );
+    civicrm_api('contact', 'create', $params);
+    //disable relationship to household
+    CRM_Contact_Form_Task_Household::createRelationship($dao->id);
+  }
+  // UCCPAR-386
+  updateContactExtIdentifier($contactA);
 }

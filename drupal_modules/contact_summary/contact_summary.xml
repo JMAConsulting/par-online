@@ -82,4 +82,9 @@
     <page_callback>CRM_RBC_Form_DirectDebit::filterContributions</page_callback> 
     <access_arguments>access CiviCRM</access_arguments> 
   </item>
+  <item>
+     <path>civicrm/contact/household/contacts</path>
+     <page_callback>CRM_Contact_Form_Task_Household_Merge::assignHousehold</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
 </menu>
