@@ -104,7 +104,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
           CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id = {$contactID}");
           CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $additionalParams['monthly_contact_id'], 'external_identifier', $addExtID);
           $addContacts = $additionalParams['_contacts'];
-          //$this->createRelationship($additionalParams['monthly_contact_id'], $houseHoldCid, HEAD_OF_HOUSEHOLD);
+          $this->createRelationship($additionalParams['monthly_contact_id'], $houseHoldCid, HEAD_OF_HOUSEHOLD);
           if (CRM_Utils_Array::value('monthly_donation', $additionalParams) == 'previous') {
             $_GET['cid'] = $additionalParams['monthly_contact_id'];
             require_once 'CRM/Contact/Form/Donation.php';
@@ -130,52 +130,6 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
     foreach ($contacts as $contactID) {
       CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactID, 'external_identifier', $externalIdentifier . '-' . $count);
       $count++;
-    }
-    // ---
-    if (CRM_Utils_Array::value('household_member', $params)) {
-      foreach ($params['household_member'] as $key => $value) {
-        $otherHouseHold = $params['otherHousehold'][$key];
-        $getParams = array( 
-          'version' => 3,
-          'contact_id_a' => $otherHouseHold,
-          'relationship_type_id' => HEAD_OF_HOUSEHOLD,
-          'is_active' => 1,
-        );
-        require_once 'api/api.php';
-        $houseHoldRelation = civicrm_api('relationship', 'get', $getParams);
-        $houseHoldId = NULL;
-        if (CRM_Utils_Array::value('id', $houseHoldRelation)) {
-          $houseHoldId = $houseHoldRelation['values'][$houseHoldRelation['id']]['contact_id_b'];
-          CRM_Core_DAO::executeQuery("UPDATE civicrm_relationship SET contact_id_a = {$value['monthly_contact_id']} WHERE id = {$houseHoldRelation['id']}");
-          $getParams = array( 
-            'version' => 3,
-            'contact_id_a' => $value['monthly_contact_id'],
-            'relationship_type_id' => MEMBER_OF_HOUSEHOLD,
-            'is_active' => 1,
-          );
-          $memberHouseHoldRelation = civicrm_api('relationship', 'get', $getParams);
-          if (CRM_Utils_Array::value('id', $memberHouseHoldRelation)) {
-            $getParams['id'] = CRM_Utils_Array::value('id', $memberHouseHoldRelation);
-            $memberHouseHoldRelation = civicrm_api('relationship', 'delete', $getParams);
-          }
-        }
-        
-        foreach($value['_contacts'] as $memberContacts) {
-          if ($value['monthly_contact_id'] != $memberContacts) {
-            unset($getParams['id']);
-            $getParams['contact_id_a'] = $memberContacts;
-            $getParams['contact_id_b'] = $houseHoldId;
-            $otherMemberHouseHoldRel = civicrm_api('relationship', 'get', $getParams);
-            if (!CRM_Utils_Array::value('id', $houseHoldRelation)) {
-              $result = civicrm_api('relationship', 'create', $getParams);
-            }
-          }
-        }
-        $query = "SELECT last_name, first_name FROM civicrm_contact WHERE id IN (" . implode(",", $value['_contacts']) . ")";
-        $houseHoldCid = $this->createHouseHoldName($query, $houseHoldId);
-        $externalId = CRM_Core_DAO::singleValueQuery("SELECT external_identifier FROM civicrm_contact WHERE id = {$value['monthly_contact_id']}");
-        CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = '".substr($externalId,0,-2)."' WHERE id = {$value['monthly_contact_id']}");
-      }
     }
     CRM_Core_Session::singleton()->set('numberOfContacts', '');
   } 
@@ -255,7 +209,23 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
     }
     else {
       $houseHoldCid = CRM_Core_DAO::singleValueQuery("SELECT contact_id_b FROM civicrm_relationship WHERE contact_id_a = {$contactId} AND relationship_type_id = " . HEAD_OF_HOUSEHOLD);
-      $houseHoldCid = $this->createHouseHoldName($query, $houseHoldCid);
+      $dao = CRM_Core_DAO::executeQuery($query);
+      if ($dao->N == 1) {
+        $params = array(
+          'contact_id' => $houseHoldCid,
+          'contact_type' => 'Household',
+          'external_identifier' => NULL,
+          'is_deleted' => 1,
+          'version' => 3,
+        );
+        civicrm_api('contact', 'create', $params);
+        //disable relationship to household
+        CRM_Contact_Form_Task_Household::createRelationship($contactId);
+        $houseHoldCid = NULL;
+      }
+      else {
+        $houseHoldCid = $this->createHouseHoldName($query, $houseHoldCid);
+      }
     }
     return $houseHoldCid;
   }
