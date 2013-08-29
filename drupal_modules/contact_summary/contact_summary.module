@@ -1726,12 +1726,12 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
   if ($dao->N > 1) {
     CRM_Contact_Form_Task_Household::createHouseHoldName($query, $contactB);
   }
-  elseif($dao->fetch()) {
+  elseif ($dao->fetch()) {
     // soft delete household
     $params = array(
       'contact_id' => $contactB,
       'contact_type' => 'Household',
-      'external_identifier' => NULL,
+      'external_identifier' => '',
       'is_deleted' => 1,
       'version' => 3,
     );

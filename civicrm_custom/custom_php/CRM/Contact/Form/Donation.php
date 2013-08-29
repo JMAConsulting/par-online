@@ -324,7 +324,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Price/BAO/Set.php';
         $priceSetDetails = CRM_Price_BAO_Set::getSetDetail( $fieldDetails['pricesetid'] );
         $fields       = $priceSetDetails[ $fieldDetails['pricesetid'] ][ 'fields' ];
-        $lineitem     = null;
+        $lineitem     = array();
         $start_date   = date("Y/m/d H:i:s",$next);
         CRM_Price_BAO_Set::processAmount( $fields, $fieldDetails, $lineitem );
         //Prepare recurring contribution params
