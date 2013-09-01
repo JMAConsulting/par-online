@@ -104,7 +104,7 @@ Class CRM_par_import {
     fclose($read);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonorNsfData.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Donar NsF Data failed in function : importDonorNsfData()');
     }
   }
@@ -187,7 +187,7 @@ Class CRM_par_import {
         { 
           $insert_all_rows='';
           $insert_org = "INSERT INTO civicrm_contact ( external_identifier, contact_type, contact_sub_type, sort_name, display_name, organization_name) values ('{$ext_id}','Organization', '{$contact_subtype}','{$organization_name}','{$organization_name}','{$organization_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_sub_type = '{$contact_subtype}', sort_name = '{$organization_name}', display_name = '{$organization_name}', organization_name = '{$organization_name}';\n";
-            
+  
           $contact_id = $setContactNULL = $setParentNULL = $setGenNULL = $setSetNULL = $setGPFNULL = $setGPFVNULL = $setMSNULL = $setMSPFNULL = $setMSPFVNULL = $setONULL = $setOPFINULL = $setOPFVNULL = $parent_id = $general_id = $price_setId = $general_price_fieldId = $ms_pfvId = $ms_id = $other_pfvId = $general_pfvId = $ms_price_fieldId = $other_id = $other_price_fieldId = $parent_contribution_type = $general_contribution_type =  $insert_price_set = $insert_general_price_field = $insert_general_price_field_value = $ms_contribution_type = $insert_ms_price_field = $insert_ms_price_field_value = $other_contribution_type = $insert_other_price_field = $insert_other_price_field_value = null;
           
           $setContactNULL = "SET @contactId := '';\n";
@@ -308,7 +308,7 @@ Class CRM_par_import {
     fclose($newRecordsToInsert);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrganization.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Organisation failed in function : importOrganisation()');
     }
   }
@@ -362,7 +362,7 @@ Class CRM_par_import {
     fclose($newRecordsToInsert);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrgRelationship.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Organization Relationship failed in function : importOrgRelationship()');
     }
   }
@@ -557,7 +557,7 @@ Class CRM_par_import {
     fclose($newRecordsToInsert);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdmin.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Admin failed in function : importAdmin()');
     }
   }
@@ -624,7 +624,7 @@ Class CRM_par_import {
     fclose($newRecordsToInsert);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdminRelationship.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Admin Relationship failed in function importAdminRelationship()');
     }
   }
@@ -1372,7 +1372,7 @@ Class CRM_par_import {
             $setLOGNULL = "SET @logId := '';\n";
             $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$extrnal_id}';\n";
             
-            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id ) VALUES ( @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', {$idb} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = {$idb};\n";
+            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', {$idb} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = {$idb}, log_time = now();\n";
             
           }
           
@@ -1385,14 +1385,14 @@ Class CRM_par_import {
             $houseGroupId = "SELECT @houseGrpID := id FROM civicrm_group_contact WHERE group_id = 3 AND contact_id = @householdId;\n";
             
             if ($pardonorName) {
-              $householdCreate = "INSERT INTO (contact_type, sort_name, household_name, display_name, external_identifier)
+              $householdCreate = " INSERT INTO civicrm_contact(contact_type, sort_name, household_name, display_name, external_identifier)
 VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $row[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}';\n
-SELECT @householdcId := id FROM civicrm_contact WHERE external_id = 'H-" . $row[0] . "';\n
+SELECT @householdcId := id FROM civicrm_contact WHERE external_identifier = 'H-" . $row[0] . "';\n
 SELECT @hcid1 := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. ");\n
 SELECT @hcid2 := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. "); 
 INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relationship_type_id, start_date) VALUES
-(@hcid1, @contactId, @householdcId, " . HEAD_OF_HOUSEHOLD . "," . date('Y-m-d h:i:s') . "),
-(@hcid2, @householdId, @householdcId, " . MEMBER_OF_HOUSEHOLD . "," . date('Y-m-d h:i:s') . ");";
+(@hcid1, @contactId, @householdcId, " . HEAD_OF_HOUSEHOLD . ", now()),
+(@hcid2, @householdId, @householdcId, " . MEMBER_OF_HOUSEHOLD . ", now());";
             }
             $household_contact_grp = null;
             $household_contact_grp = "INSERT INTO civicrm_group_contact ( id, group_id, contact_id, status ) values ( @houseGrpID, 3,@householdId, 'Added' ) ON DUPLICATE KEY UPDATE id = @houseGrpID, contact_id = @householdId;\n";
@@ -1466,7 +1466,7 @@ AND cc.external_identifier LIKE 'H-" . $row[0] . "';\n";
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonor.sql";
     $test = exec($cmd, $output, $return);
 
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Donar Failed in function : importDonor()');
     }
   }
@@ -1553,7 +1553,7 @@ AND cc.external_identifier LIKE 'H-" . $row[0] . "';\n";
     fclose($notimportCSV);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importCharge.sql";
     $test = exec($cmd ,$output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Charge failed in function : importCharge()');
     }
   }
@@ -1699,7 +1699,7 @@ AND cc.external_identifier LIKE 'H-" . $row[0] . "';\n";
         $setLOGNULL = "SET @logId := '';\n";
         $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$ext_identifier}';\n";
                 
-        $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_id, primary_contact_id, external_identifier, `m&s_amount`, general_amount, other_amount ) VALUES ( @logId, @contactId, '{$ext_identifier}', '{$ms_amount}', '{$general_amount}', '{$other_amount}' ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, `m&s_amount` = '{$ms_amount}', general_amount = '{$general_amount}', other_amount = '{$other_amount}';\n";
+        $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, external_identifier, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, @contactId, '{$ext_identifier}', '{$ms_amount}', '{$general_amount}', '{$other_amount}' ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, `m&s_amount` = '{$ms_amount}', general_amount = '{$general_amount}', other_amount = '{$other_amount}', log_time = now();\n";
     
         $insert_all_rows  = $contact_id.$setRecuNULL.$recurId.$contribRecurInsert.$recurId.$setContrNULL.$contrId.$contrib.$contrId.$orgId.$generalPFID.$generalPFValue.$setGeneraNULL.$generalLI.$lineItemGeneral.$msPFID.$msPFValue.$setMsNULL.$msLI.$lineItemMS.$otherPFID.$otherPFValue.$setOtherNULL.$otherLI.$lineItemOther.$setLOGNULL.$logId.$insertParLog;
        
@@ -1726,7 +1726,7 @@ AND cc.external_identifier LIKE 'H-" . $row[0] . "';\n";
     fclose($notwrite);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importTransaction.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Contribution failed in function : importContribution()');
     }
   }
@@ -1858,7 +1858,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
           $setLOGNULL = "SET @logId := '';\n";
           $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = {$contactId};\n";
           
-          $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_id, primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, nsf, removed	) VALUES ( @logId, {$contactId}, '{$bank_name}', '{$branch_number}', '{$account_number}', {$NSF}, {$removed} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = {$contactId}, par_donor_bank_id = '{$bank_name}', par_donor_branch_id = '{$branch_number}', par_donor_account = '{$account_number}', nsf = {$NSF}, removed = {$removed};\n";
+          $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, nsf, removed	) VALUES ( now(), @logId, {$contactId}, '{$bank_name}', '{$branch_number}', '{$account_number}', {$NSF}, {$removed} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = {$contactId}, par_donor_bank_id = '{$bank_name}', par_donor_branch_id = '{$branch_number}', par_donor_account = '{$account_number}', nsf = {$NSF}, removed = {$removed}, log_time = now();\n";
     
           $insert_all_rows  = $setAccountNULL.$accountId.$insertCustomData.$setNsfNULL.$nsfId.$insertNsfCustomData.$setLOGNULL.$logId.$insertParLog;
           if( !empty($ContTypeID) ) {
@@ -1885,7 +1885,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
     fclose($notwrite);
     $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/updateTransaction.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Contribution Custom data filed in function : addContributionCustomData()');
     }
   }
@@ -1941,7 +1941,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
         $ufid = mysql_query($ufMId);
         $uf_id = mysql_fetch_assoc($ufid);
         mysql_close($con);
-      
+        
         $con = mysql_connect( $this->localhost, $drupaluserName, $drupalpass);
         if (!$con) {
           die('Could not connect: ' . mysql_error());
@@ -1955,7 +1955,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
           $query = "UPDATE users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
         
           if (!mysql_query($query) ) { 
-            die('Could not connect users update: ' . mysql_error()); 
+            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
           mysql_close($con);
         } else {
@@ -1971,18 +1971,17 @@ AND cd.bank_number_11 = '{$bank_number}'";
             $name = $name.'-1';
           } 
         
-          $query = "INSERT INTO users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 )";
+          $query = "INSERT INTO users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
         
           if (!mysql_query($query) ) { 
-            die('Could not connect users insert: ' . mysql_error()); 
+            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
         
           $user_role = "Insert into users_roles (uid, rid) values( {$id}, '5')";
           if (!mysql_query( $user_role ) ) { 
-            die('Could not connect users_roles insert: ' . mysql_error()); 
+            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
           mysql_close($con);
-
           $con = mysql_connect( $this->localhost, $this->userName, $this->pass );
       
           if (!$con) {
@@ -2003,17 +2002,17 @@ AND cd.bank_number_11 = '{$bank_number}'";
       
           $cvQQuery = "INSERT INTO civicrm_uf_match (domain_id, uf_id, uf_name, contact_id) VALUES ( 1, {$id}, '{$email}', {$contcatId});\n";
           if (!mysql_query($cvQQuery)) {
-            die('Could not connect: ' . mysql_error());
+            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           }
         }
       }
     }
+    mysql_close($con);
     $cmd = "mysqldump -u{$drupaluserName} -p{$drupalpass} -h{$this->localhost} {$drupalDBName} > ".$this->par2parOnlinePath.$this->newDirectory."/".$this->dbBackup."/Drupal-Backup-After-UserImport.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Import Drupal User Failed in function : drupalUser()');
     }
-    mysql_close($con);
   }
   function relatedContacts() {
    
@@ -2115,7 +2114,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
   function createBackup($after) {
     $cmd = "mysqldump -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} > ".$this->par2parOnlinePath.$this->newDirectory."/".$this->dbBackup."/Civi-Backup-After-{$after}.sql";
     $test = exec($cmd, $output, $return);
-    if (!$return) {
+    if ($return) {
       throw new Exception('Creating Backup failed');
     }
   }
@@ -2334,9 +2333,8 @@ try {
   $details = '';
 }
 catch(Exception $e) {
-  $details = 'IMPORT FAILED SINCE : ' . $e->getMessage(); 
+  $details = 'IMPORT FAILED SINCE : ' . $e->getMessage();
 }
-
 $importObj->createActivity(PAR2PAROnlineImport_ACTIVITY_TYPE_ID, 'PAR Legacy to PAR Online Import', $details);
 $attachFile = FALSE;
 
