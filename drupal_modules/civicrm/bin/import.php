@@ -876,8 +876,8 @@ Class CRM_par_import {
               $prefixNames[trim($differName)] = $lastName;
             }
             elseif (!empty($fname)) {
-              foreach ($fname as $k => $fname) {
-                $prefixNames[trim($fname)] = $lastName;
+              foreach ($fname as $k => $fnam) {
+                $prefixNames[trim($fnam)] = $lastName;
               }
             }
           } else if(strstr( $donor_name, 'Mrs.')) { 
@@ -1260,7 +1260,7 @@ Class CRM_par_import {
         {
           $insert_all_rows ='';
           
-          $pardonorName = addslashes( $rows[6] );
+          $pardonorName = $rows[6];
           if ( !empty( $last_name2 ) ) {
             if ( trim($last_name1) == trim($last_name2) ) {
               /* if($and) { */
@@ -1276,7 +1276,7 @@ Class CRM_par_import {
           } else {
             $pardonorName = trim($last_name1).", ".trim($first_name1);
           }
-            
+          $pardonorName = addslashes($pardonorName);  
                 
           $insert_donor = $setContNULL = $setGrpNULL = $setRelNULL = $setParNULL = $setAddNULL = $setEmailNULL = $setPhoneNULL = $setMSNULL = $setENNULL = $setHCNULL = $setHGNULL = $setHRNULL = $setHAddNULL = $setHEmailNULL = $setHPhoneNULL = $contact_id = $groupId = $relID = $par_accountID = $emailId = $phoneId = $msId = $envelopeId = $addressId = $delete = $individual_contact_grp = $insert_donor_rel = $insert_houshold_city = $insert_houshold_email = $insert_houshold_phone = $insertParLog = $setLOGNULL = $logId = $householdCreate = null;
           if ( !empty( $ext_id )  ) {
@@ -1914,6 +1914,8 @@ AND cd.bank_number_11 = '{$bank_number}'";
     $rows = fgetcsv( $read );
     $count = $others = 0;
     static $id_no ='';
+    $con = mysql_connect( $this->localhost, $drupaluserName, $drupalpass);
+    mysql_select_db( $drupalDBName, $con);
     while ( $rows = fgetcsv( $read ) ) { 
       $ext_id = null;
       if ( !empty($rows[0]) ) {
@@ -1928,28 +1930,14 @@ AND cd.bank_number_11 = '{$bank_number}'";
         $name = str_replace(' ', '.', strtolower( addslashes($rows[1])));
       }
       if(!empty($name)) {
-        $con = mysql_connect( $this->localhost, $this->userName, $this->pass );
-      
-        if (!$con) {
-          die('Could not connect: ' . mysql_error());
-        }
-        mysql_select_db( $this->dbName, $con);
       
         $contcatId = "(SELECT id FROM civicrm_contact where external_identifier ='{$ext_id}')";
         $ufMId = "SELECT uf_id FROM civicrm_uf_match WHERE contact_id = {$contcatId};\n"; 
       
-        $ufid = mysql_query($ufMId);
-        $uf_id = mysql_fetch_assoc($ufid);
-        mysql_close($con);
-        
-        $con = mysql_connect( $this->localhost, $drupaluserName, $drupalpass);
-        if (!$con) {
-          die('Could not connect: ' . mysql_error());
-        }
-        mysql_select_db( $drupalDBName, $con);
+        $uf_id['uf_id'] = CRM_Core_DAO::singleValueQuery($ufMId);
+       
         //password = drpl@3252
         $password = addslashes('$S$DbfpWYNTukpzEU7GyqFg3yivAXiqQTssrpzbOc2UJdA1Ot3XJXMW');
-      
       
         if ( is_array($uf_id) ) {
           $query = "UPDATE users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
@@ -1957,7 +1945,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
           if (!mysql_query($query) ) { 
             throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
-          mysql_close($con);
         } else {
           $query1 = "SELECT max(uid) as id FROM users";
           $cb = mysql_query($query1);
@@ -1981,33 +1968,24 @@ AND cd.bank_number_11 = '{$bank_number}'";
           if (!mysql_query( $user_role ) ) { 
             throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
-          mysql_close($con);
-          $con = mysql_connect( $this->localhost, $this->userName, $this->pass );
-      
-          if (!$con) {
-            die('Could not connectss: ' . mysql_error());
-          }
-          mysql_select_db( "$this->dbName", $con);
-          //mysql_select_db( $dbName, $con);
+                 
           if ( empty($email) ) {
             $email = $name;
           }
     
           $query2 = "SELECT uf_name as name FROM civicrm_uf_match where uf_name = '{$email}'";
-          $cb1 = mysql_query($query2);
-          while ( $infob1 = mysql_fetch_assoc($cb1) ) {
+          $infob1 = CRM_Core_DAO::executeQuery($query2);
+          while ($infob1->N) {
             $email = $name;
           }    
           $contcatId = "(SELECT id FROM civicrm_contact where external_identifier ='{$ext_id}')";
       
           $cvQQuery = "INSERT INTO civicrm_uf_match (domain_id, uf_id, uf_name, contact_id) VALUES ( 1, {$id}, '{$email}', {$contcatId});\n";
-          if (!mysql_query($cvQQuery)) {
-            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
-          }
+          
+          CRM_Core_DAO::executeQuery($cvQQuery);
         }
       }
     }
-    mysql_close($con);
     $cmd = "mysqldump -u{$drupaluserName} -p{$drupalpass} -h{$this->localhost} {$drupalDBName} > ".$this->par2parOnlinePath.$this->newDirectory."/".$this->dbBackup."/Drupal-Backup-After-UserImport.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
