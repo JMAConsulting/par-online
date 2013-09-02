@@ -996,8 +996,8 @@ Class CRM_par_import {
               $prefixNames["DR. ".trim($firstName)] = $lastName;
             }
             elseif (!empty($fnames)) {
-              foreach ($fnames as $k => $fname) {
-                $prefixNames[trim($fname)] = $lastName;
+              foreach ($fnames as $k => $fnam) {
+                $prefixNames[trim($fnam)] = $lastName;
               }
             }
           }else if(strstr( $donor_name, ' DR')) { 
@@ -1940,31 +1940,31 @@ AND cd.bank_number_11 = '{$bank_number}'";
         $password = addslashes('$S$DbfpWYNTukpzEU7GyqFg3yivAXiqQTssrpzbOc2UJdA1Ot3XJXMW');
       
         if ( is_array($uf_id) ) {
-          $query = "UPDATE users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
+          $query = "UPDATE {$drupaluserName}.users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
         
           if (!mysql_query($query) ) { 
             throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
         } else {
-          $query1 = "SELECT max(uid) as id FROM users";
+          $query1 = "SELECT max(uid) as id FROM {$drupaluserName}.users";
           $cb = mysql_query($query1);
           $id = null;
           while ( $infob = mysql_fetch_assoc($cb) ) {
             $id =  $infob['id'] + 1;
           }
-          $query3 = "SELECT name FROM users where name = '{$name}'";
+          $query3 = "SELECT name FROM {$drupaluserName}.users where name = '{$name}'";
           $cb2 = mysql_query($query3);
           while ( $infob2 = mysql_fetch_assoc($cb2) ) {
             $name = $name.'-1';
           } 
         
-          $query = "INSERT INTO users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
+          $query = "INSERT INTO {$drupaluserName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
         
           if (!mysql_query($query) ) { 
             throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
         
-          $user_role = "Insert into users_roles (uid, rid) values( {$id}, '5')";
+          $user_role = "Insert into {$drupaluserName}.users_roles (uid, rid) values( {$id}, '5')";
           if (!mysql_query( $user_role ) ) { 
             throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
           } 
