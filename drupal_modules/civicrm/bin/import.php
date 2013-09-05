@@ -2217,7 +2217,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
     unlink($this->par2parOnlinePath . $this->transactionFile);
   }
   function logs($data) {
-    $file = fopen($this->par2parOnlinePath . $this->importLog, 'a');
+    $file = fopen($this->par2parOnlinePath . $this->newDirectory . '/' . $this->importLog, 'a');
     fwrite($file, $data . "\n");
     fclose($file);
   }
