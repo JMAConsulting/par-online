@@ -1914,8 +1914,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
     $rows = fgetcsv( $read );
     $count = $others = 0;
     static $id_no ='';
-    $con = mysql_connect( $this->localhost, $drupaluserName, $drupalpass);
-    mysql_select_db( $drupalDBName, $con);
     while ( $rows = fgetcsv( $read ) ) { 
       $ext_id = null;
       if ( !empty($rows[0]) ) {
@@ -1938,36 +1936,24 @@ AND cd.bank_number_11 = '{$bank_number}'";
        
         //password = drpl@3252
         $password = addslashes('$S$DbfpWYNTukpzEU7GyqFg3yivAXiqQTssrpzbOc2UJdA1Ot3XJXMW');
-      
-        if ( is_array($uf_id) ) {
-          $query = "UPDATE {$drupaluserName}.users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
         
-          if (!mysql_query($query) ) { 
-            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
-          } 
+        if (is_array($uf_id) && !empty($uf_id['uf_id'])) {
+          $query = "UPDATE {$drupalDBName}.users SET mail = '{$email}' WHERE uid = {$uf_id['uf_id']}";
+          CRM_Core_DAO::executeQuery($query);
         } else {
-          $query1 = "SELECT max(uid) as id FROM {$drupaluserName}.users";
-          $cb = mysql_query($query1);
-          $id = null;
-          while ( $infob = mysql_fetch_assoc($cb) ) {
-            $id =  $infob['id'] + 1;
-          }
-          $query3 = "SELECT name FROM {$drupaluserName}.users where name = '{$name}'";
-          $cb2 = mysql_query($query3);
-          while ( $infob2 = mysql_fetch_assoc($cb2) ) {
+          $query1 = "SELECT max(uid) as id FROM {$drupalDBName}.users";
+          $id = CRM_Core_DAO::singleValueQuery($query1) + 1;
+          $query3 = "SELECT name FROM {$drupalDBName}.users where name = '{$name}'";
+          $cb2 = CRM_Core_DAO::singleValueQuery($query3);
+          if ($cb2) {
             $name = $name.'-1';
           } 
         
-          $query = "INSERT INTO {$drupaluserName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
+          $query = "INSERT INTO {$drupalDBName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
+          CRM_Core_DAO::executeQuery($query);
         
-          if (!mysql_query($query) ) { 
-            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
-          } 
-        
-          $user_role = "Insert into {$drupaluserName}.users_roles (uid, rid) values( {$id}, '5')";
-          if (!mysql_query( $user_role ) ) { 
-            throw new Exception('Import Drupal User Failed in function : drupalUser() as ' . mysql_error());
-          } 
+          $user_role = "Insert into {$drupalDBName}.users_roles (uid, rid) values( {$id}, '5') ON DUPLICATE KEY UPDATE uid = uid;";
+          CRM_Core_DAO::executeQuery($user_role);
                  
           if ( empty($email) ) {
             $email = $name;
@@ -1975,12 +1961,12 @@ AND cd.bank_number_11 = '{$bank_number}'";
     
           $query2 = "SELECT uf_name as name FROM civicrm_uf_match where uf_name = '{$email}'";
           $infob1 = CRM_Core_DAO::executeQuery($query2);
-          while ($infob1->N) {
+          if ($infob1->N) {
             $email = $name;
           }    
           $contcatId = "(SELECT id FROM civicrm_contact where external_identifier ='{$ext_id}')";
       
-          $cvQQuery = "INSERT INTO civicrm_uf_match (domain_id, uf_id, uf_name, contact_id) VALUES ( 1, {$id}, '{$email}', {$contcatId});\n";
+          $cvQQuery = "INSERT INTO civicrm_uf_match (domain_id, uf_id, uf_name, contact_id) VALUES ( 1, {$id}, '{$email}', {$contcatId}) ON DUPLICATE KEY UPDATE contact_id = {$contcatId};\n";
           
           CRM_Core_DAO::executeQuery($cvQQuery);
         }
