@@ -1386,8 +1386,8 @@ Class CRM_par_import {
             
             if ($pardonorName) {
               $householdCreate = " INSERT INTO civicrm_contact(contact_type, sort_name, household_name, display_name, external_identifier)
-VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $row[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}';\n
-SELECT @householdcId := id FROM civicrm_contact WHERE external_identifier = 'H-" . $row[0] . "';\n
+VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $rows[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}';\n
+SELECT @householdcId := id FROM civicrm_contact WHERE external_identifier = 'H-" . $rows[0] . "';\n
 SELECT @hcid1 := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. ");\n
 SELECT @hcid2 := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. "); 
 INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relationship_type_id, start_date) VALUES
@@ -1438,7 +1438,7 @@ cc.is_deleted =1,
 cr.is_active = 0,
 cr.end_date = NOW()
 WHERE cr.is_active = 1 AND cc.contact_type LIKE 'Household' AND cr.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD . ")
-AND cc.external_identifier LIKE 'H-" . $row[0] . "';\n";
+AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
           }
           $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog;
           
@@ -1943,13 +1943,13 @@ AND cd.bank_number_11 = '{$bank_number}'";
         } else {
           $query1 = "SELECT max(uid) as id FROM {$drupalDBName}.users";
           $id = CRM_Core_DAO::singleValueQuery($query1) + 1;
-          $query3 = "SELECT name FROM {$drupalDBName}.users where name = '{$name}'";
+          $query3 = "SELECT name FROM {$drupalDBName}.users where name LIKE '{$name}%'";
           $cb2 = CRM_Core_DAO::singleValueQuery($query3);
           if ($cb2) {
-            $name = $name.'-1';
+            $name = $name . '-' .CRM_Core_DAO::singleValueQuery("SELECT IFNULL(max(SUBSTRING_INDEX(name, '{$name}-', -1)), 0) + 1 FROM {$drupalDBName}.users WHERE `name` LIKE '{$name}-%'");
           } 
         
-          $query = "INSERT INTO {$drupalDBName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
+          $query = "INSERT INTO {$drupalDBName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 );";
           CRM_Core_DAO::executeQuery($query);
         
           $user_role = "Insert into {$drupalDBName}.users_roles (uid, rid) values( {$id}, '5') ON DUPLICATE KEY UPDATE uid = uid;";
