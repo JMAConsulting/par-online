@@ -18,18 +18,14 @@ Class CRM_par_export {
     $config = CRM_Core_Config::singleton();
     $getDBdetails = explode( '/',  $config->dsn);
     
-    $this->par2parOnlinePath = $this->root_path.'sites/default/files/PAR2PAROnline/';
     $this->parOnline2ParPath = $this->root_path.'sites/default/files/PAROnline2PAR/';
     $this->synchFile = 'civicrm_log_par_donor.txt';
-    $this->exportLog = 'export.log';
-    $this->dbBackup = "dbBackup";     
     $this->dbName = explode( '?',  $getDBdetails[3]);
     $this->dbName = $this->dbName[0];
     $this->userName = explode( '@', $getDBdetails[2] );
     $this->userName = explode( ':', $this->userName[0] );
     $this->pass = $this->userName[1];
     $this->userName = $this->userName[0];
-    $this->flag = FALSE;
     $this->localhost = '10.50.0.30';
   }
   
@@ -72,6 +68,28 @@ Class CRM_par_export {
   }
 }  
 
-$importObj = new CRM_par_export();
-$importObj-> exportCSV();
+$exportObj = new CRM_par_export();
+$exportObj-> exportCSV();
+require_once('CRM/Contact/BAO/Group.php');
+$params = array( 
+  'source_contact_id' => 1,
+  'activity_type_id' => PAROnline2PAR_ACTIVITY_TYPE_ID,
+  'assignee_contact_id' => array_keys(CRM_Contact_BAO_Group::getGroupContacts(SYSTEM_ADMIN)),
+  'subject' => 'PAR Online to PAR Legacy Export',
+  'details' => '',
+  'activity_date_time' => date('Y-m-d H:i:s'),
+  'status_id' => 2,
+  'priority_id' => 2,
+  'version' => 3,
+);
+$newFileName = 'civicrm_log_par_donor_' . md5(date('YmdHis')) . '.txt';
+copy($exportObj->parOnline2ParPath . $exportObj->synchFile, $exportObj->parOnline2ParPath . $newFileName);
+$params['attachFile_1'] = array(
+  'uri' => $exportObj->parOnline2ParPath . $newFileName,
+  'type' => 'text/csv',
+  'location' => $exportObj->parOnline2ParPath . $newFileName,
+  'upload_date' => date('YmdHis'),
+);
+civicrm_api('activity', 'create', $params);
+
 ?>
