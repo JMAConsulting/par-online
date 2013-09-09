@@ -2221,10 +2221,12 @@ AND cd.bank_number_11 = '{$bank_number}'";
       'version' => 3,
     );
     if ($attachFile) {
+      $newFileName = 'civicrm_log_par_donor_' . md5(date('YmdHis')) . '.txt';
+      copy($this->parOnline2ParPath . $this->synchFile, $this->parOnline2ParPath . $newFileName);
       $params['attachFile_1'] = array(
-        'uri' => $this->parOnline2ParPath.$this->synchFile,
+        'uri' => $this->parOnline2ParPath . $newFileName,
         'type' => 'text/csv',
-        'location' => $this->parOnline2ParPath.$this->synchFile,
+        'location' => $this->parOnline2ParPath . $newFileName,
         'upload_date' => date('YmdHis'),
       );
     }
