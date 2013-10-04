@@ -102,7 +102,7 @@ Class CRM_par_import {
       }
     }
     fclose($read);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonorNsfData.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonorNsfData.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Donar NsF Data failed in function : importDonorNsfData()');
@@ -306,7 +306,7 @@ Class CRM_par_import {
     
     fclose($read);
     fclose($newRecordsToInsert);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrganization.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrganization.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Organisation failed in function : importOrganisation()');
@@ -360,7 +360,7 @@ Class CRM_par_import {
     
     fclose($read);
     fclose($newRecordsToInsert);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrgRelationship.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importOrgRelationship.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Organization Relationship failed in function : importOrgRelationship()');
@@ -555,7 +555,7 @@ Class CRM_par_import {
     self::logs("no of invalid records = ".$others);
     fclose($read);
     fclose($newRecordsToInsert);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdmin.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdmin.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Admin failed in function : importAdmin()');
@@ -622,7 +622,7 @@ Class CRM_par_import {
     
     fclose($read);
     fclose($newRecordsToInsert);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdminRelationship.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importAdminRelationship.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Admin Relationship failed in function importAdminRelationship()');
@@ -1463,7 +1463,7 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
     self::logs("no of invalid records = ".$others);
     fclose($read);
     fclose($newRecordsToInsert);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonor.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importDonor.sql";
     $test = exec($cmd, $output, $return);
 
     if ($return) {
@@ -1551,7 +1551,7 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
     fclose($read);
     fclose($newRecordsToInsert);
     fclose($notimportCSV);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importCharge.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importCharge.sql";
     $test = exec($cmd ,$output, $return);
     if ($return) {
       throw new Exception('Import Charge failed in function : importCharge()');
@@ -1724,7 +1724,7 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
     fclose($read);
     fclose($write);
     fclose($notwrite);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importTransaction.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/importTransaction.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Contribution failed in function : importContribution()');
@@ -1883,7 +1883,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
     fclose($read);
     fclose($write);
     fclose($notwrite);
-    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/updateTransaction.sql";
+    $cmd  = "mysql -u{$this->userName} -p{$this->pass} -h{$this->localhost} --default-character-set=utf8 {$this->dbName} < ".$this->par2parOnlinePath.$this->newDirectory."/updateTransaction.sql";
     $test = exec($cmd, $output, $return);
     if ($return) {
       throw new Exception('Import Contribution Custom data filed in function : addContributionCustomData()');
