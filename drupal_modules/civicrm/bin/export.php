@@ -27,9 +27,11 @@ Class CRM_par_export {
     $this->pass = $this->userName[1];
     $this->userName = $this->userName[0];
     $this->localhost = '10.50.0.30';
+    $this->newDirectory = date('Ymd_His');
   }
   
   public function exportCSV( ) {
+    mkdir($this->parOnline2ParPath . $this->newDirectory, 01777);
     $con = mysql_connect( $this->localhost, $this->userName, $this->pass );
     if (!$con) {
       die('Could not connectss: ' . mysql_error());
@@ -37,7 +39,7 @@ Class CRM_par_export {
     mysql_select_db( "$this->dbName", $con);
     $getTable = "SELECT * FROM civicrm_log_par_donor";
     $table  = mysql_query ( $getTable ) or die ( "Sql error : " . mysql_error( ) );
-    $exportCSV  = fopen($this->parOnline2ParPath.$this->synchFile, 'w' );
+    $exportCSV  = fopen($this->parOnline2ParPath . $this->newDirectory . '/' . $this->synchFile, 'w' );
     
     // fetch a row and write the column names out to the file
     $row = mysql_fetch_assoc($table);
@@ -83,11 +85,13 @@ $params = array(
   'version' => 3,
 );
 $newFileName = 'civicrm_log_par_donor_' . md5(date('YmdHis')) . '.txt';
-copy($exportObj->parOnline2ParPath . $exportObj->synchFile, $exportObj->parOnline2ParPath . $newFileName);
+$newDirectory = $exportObj->parOnline2ParPath . '/' . $exportObj->newDirectory . '/';
+     
+copy($newDirectory . $exportObj->synchFile, $newDirectory . $newFileName);
 $params['attachFile_1'] = array(
-  'uri' => $exportObj->parOnline2ParPath . $newFileName,
+  'uri' => $newDirectory . $newFileName,
   'type' => 'text/csv',
-  'location' => $exportObj->parOnline2ParPath . $newFileName,
+  'location' => $newDirectory . $newFileName,
   'upload_date' => date('YmdHis'),
 );
 civicrm_api('activity', 'create', $params);

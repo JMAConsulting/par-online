@@ -2091,7 +2091,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
     mysql_select_db( "$this->dbName", $con);
     $getTable = "SELECT * FROM civicrm_log_par_donor";
     $table  = mysql_query ( $getTable ) or die ( "Sql error : " . mysql_error( ) );
-    $exportCSV  = fopen($this->parOnline2ParPath.$this->synchFile, 'w' );
+    $exportCSV  = fopen($this->parOnline2ParPath . '/' . $this->newDirectory . '/' . $this->synchFile, 'w' );
     
     // fetch a row and write the column names out to the file
     $row = mysql_fetch_assoc($table);
@@ -2157,6 +2157,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
       
       $oldmask = umask(0);
       mkdir($this->par2parOnlinePath.$this->newDirectory, 01777);
+      mkdir($this->parOnline2ParPath.$this->newDirectory, 01777);
       umask($oldmask);
       $oldmask = umask(0);
       mkdir($this->par2parOnlinePath.$this->newDirectory.'/'.$this->dbBackup, 01777);
@@ -2222,11 +2223,12 @@ AND cd.bank_number_11 = '{$bank_number}'";
     );
     if ($attachFile) {
       $newFileName = 'civicrm_log_par_donor_' . md5(date('YmdHis')) . '.txt';
-      copy($this->parOnline2ParPath . $this->synchFile, $this->parOnline2ParPath . $newFileName);
+      $newDirectory = $this->parOnline2ParPath . '/' . $this->newDirectory . '/';
+      copy($newDirectory . $this->synchFile, $newDirectory . $newFileName);
       $params['attachFile_1'] = array(
-        'uri' => $this->parOnline2ParPath . $newFileName,
+        'uri' => $newDirectory . $newFileName,
         'type' => 'text/csv',
-        'location' => $this->parOnline2ParPath . $newFileName,
+        'location' => $newDirectory . $newFileName,
         'upload_date' => date('YmdHis'),
       );
     }
