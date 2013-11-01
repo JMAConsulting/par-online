@@ -284,7 +284,13 @@ Class CRM_par_import {
           }
 
           $insert_all_rows = $insert_org.$setContactNULL.$contact_id.$setParentNULL.$parent_id.$parent_contribution_type.$parent_id.$setGenNULL.$general_id.$general_contribution_type.$general_id.$setSetNULL.$price_setId.$insert_price_set.$price_setId.$setGPFNULL.$general_price_fieldId.$insert_general_price_field.$general_price_fieldId.$setGPFVNULL.$general_pfvId.$insert_general_price_field_value.$setMSNULL.$ms_id.$ms_contribution_type.$ms_id.$setMSPFNULL.$ms_price_fieldId.$insert_ms_price_field.$ms_price_fieldId.$setMSPFVNULL.$ms_pfvId.$insert_ms_price_field_value.$setONULL.$other_id.$other_contribution_type.$other_id.$setOPFINULL.$other_price_fieldId.$insert_other_price_field.$other_price_fieldId.$setOPFVNULL.$other_pfvId.$insert_other_price_field_value.$insert_city.$insert_email.$insert_phone.$insert_fax.$insert_ms_number; 
-          
+          $insert_all_rows .= "\n UPDATE civicrm_log_par_donor clpd
+LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
+SET  `log_action` = 'Delete',
+`log_time` = now(),
+removed = 1,
+cc.is_deleted = 1
+WHERE `log_time` < CURDATE();\n";
           fwrite($newRecordsToInsert,$insert_all_rows);
           $count = $count ++;
         } else {
