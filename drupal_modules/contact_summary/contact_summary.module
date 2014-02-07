@@ -5,26 +5,28 @@ function contact_summary_menu_alter(&$items) {
   }
 
 function contact_summary_civicrm_customFieldOptions( $fieldID, &$options, $detailedFormat = false ) {
+  if ($fieldID == 47) {
+    $options = findContactCongregation();
+  }
+  if (!in_array($fieldID, array(44, 45, 46))) {
+    return;
+  }
+  require_once 'CRM/Utils/Array.php';
+  require_once 'CRM/Contribute/DAO/ParServiceFees.php';
+  $serviceFees = new CRM_Contribute_DAO_ParServiceFees();
+  $serviceFees->find( );
     
-    if ( !in_array($fieldID, array(44, 45, 46)  ) ) {
-        return;
-    }
-    require_once 'CRM/Utils/Array.php';
-    require_once 'CRM/Contribute/DAO/ParServiceFees.php';
-    $serviceFees = new CRM_Contribute_DAO_ParServiceFees();
-    $serviceFees->find( );
+  if ( CRM_Utils_Array::value( 'gid', $_GET ) ) {
+    $groupID = CRM_Utils_Array::value( 'gid', $_GET );
+  }
     
-    if ( CRM_Utils_Array::value( 'gid', $_GET ) ) {
-        $groupID = CRM_Utils_Array::value( 'gid', $_GET );
-    }
+  if ( CRM_Utils_Array::value( 'gid', $_POST ) ) {
+    $groupID = CRM_Utils_Array::value( 'gid', $_POST );
+  }
     
-    if ( CRM_Utils_Array::value( 'gid', $_POST ) ) {
-        $groupID = CRM_Utils_Array::value( 'gid', $_POST );
-    }
-    
-    while( $serviceFees->fetch() ){
-        $options[$serviceFees->id] = $serviceFees->name; 
-    }
+  while( $serviceFees->fetch() ){
+    $options[$serviceFees->id] = $serviceFees->name; 
+  }
 }
 
 function contact_summary_user_login(&$edit, $account) {
@@ -605,17 +607,20 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
           );
         }
         foreach ( $smarty->_tpl_vars['profileFields'] as $key => $value ) {
-            if ( strstr( $key, 'custom' ) ) {
-                if (strstr( $value['label'], 'audit number' ) ) {
-                    if ( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], SYS_ADMIN_GROUP_ID ) ) {
-                        unset($smarty->_tpl_vars['profileFields'][$key]);
-                    }
-                } else {
-                    if ( !empty($customFields[$smarty->_tpl_vars['profileFields'][$key]['value']] ) ) {
-                        $smarty->_tpl_vars['profileFields'][$key]['value'] = $customFields[$smarty->_tpl_vars['profileFields'][$key]['value']];
-                    }
-                }
+          if ( strstr( $key, 'custom' ) ) {
+            if ($value['label'] == 'Congregation Name') {
+              unset($smarty->_tpl_vars['profileFields'][$key]);
             }
+            if (strstr( $value['label'], 'audit number' ) ) {
+              if ( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], SYS_ADMIN_GROUP_ID ) ) {
+                unset($smarty->_tpl_vars['profileFields'][$key]);
+              }
+            } else {
+              if ( !empty($customFields[$smarty->_tpl_vars['profileFields'][$key]['value']] ) ) {
+                $smarty->_tpl_vars['profileFields'][$key]['value'] = $customFields[$smarty->_tpl_vars['profileFields'][$key]['value']];
+              }
+            }
+          }
         } 
         
     }
@@ -677,7 +682,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $smarty->_tpl_vars['urls']['active'] =  CRM_Utils_System::url('civicrm/contact/active/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
 
         $smarty->_tpl_vars['activityTypes']['stop'] = 'Stop All Donations Permanently';
-        $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/stop/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+        $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/stop/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']); 
 
         // UCCPAR-414
         $relId = CRM_Core_DAO::singleValueQuery('SELECT id FROM `civicrm_relationship`
@@ -1205,13 +1210,20 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
 
 function contact_summary_civicrm_postProcess( $formName, &$form ){
     if( $formName == 'CRM_Profile_Form_Edit' && ( $form->getVar( "_gid" ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) ) {
-        
         $session = CRM_Core_Session::singleton();
         $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'reset=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
     } else if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
         $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
         $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
-        if( !$supporter_id ) {
+        if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+          $createNewRelation = array( 'version'              => 3,
+                               'contact_id_a'         => $form->getVar( "_id" ),
+                               'contact_id_b'         => CRM_Utils_Array::value( 'custom_47', $form->_submitValues ),
+                               'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+                               'is_active'            => 1 );
+          $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
+        }
+        if( !$supporter_id && !CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
             $getRelationParam = array( 'version'     => 3,
                                        'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
             require_once 'api/api.php';
