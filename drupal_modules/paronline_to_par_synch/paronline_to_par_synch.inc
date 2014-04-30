@@ -4,8 +4,17 @@ function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
   if (!empty($params['primary_contact_id'])) {
     $externalIdentifier = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $params['primary_contact_id'], 'external_identifier');
     $extra = explode("-", $externalIdentifier); 
-    if(isset($extra['2'])) {
-      return;
+    if (isset($extra['2'])) {
+      if (isset($params['par_donor_name'])) {
+        $op = 'Update';
+        $params = array( 
+          'par_donor_name' => $params['par_donor_name'],
+          'external_identifier' => $params['external_identifier']
+        );
+      }
+      else {
+        return;
+      }
     }
   }
   if ( $op == 'Update' || $op == 'Delete' ) {

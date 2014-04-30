@@ -88,36 +88,28 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
   
   if ( $objectName == 'Individual' && $op != 'delete' && $op != 'view' ) {
     $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->id;
-    $name = null;
-    $name[trim($objectRef->last_name)][trim($objectRef->first_name)] = trim($objectRef->first_name);
     $external_identifier = CRM_Core_DAO::singleValueQuery($query);
-    if ( !empty( $external_identifier) ) {
+    if (!empty($external_identifier)) {
       $result = explode( '-',$external_identifier);
-      $query = "SELECT par_donor_name FROM civicrm_log_par_donor WHERE external_identifier = ".$result[1];
-      $donor_name = CRM_Core_DAO::singleValueQuery($query);
-      if( !empty($donor_name)) {
-        $val = explode( ';' , $donor_name );
-        foreach ( $val  as $key => $value ) {
-          $lastnames = explode( ',', $value );
-          $firstnames = explode( '&', $lastnames[1] );
-          foreach ( $firstnames as $first_name ) {
-            $name[trim($lastnames[0])][trim($first_name)] = trim($first_name);
-          }
-        }
-      }
       $params['external_identifier'] = $result[1];
     } 
     $params['primary_contact_id'] = $objectRef->id;
-    $params['par_donor_name'] = null;
-    foreach( $name as $key => $value ) {
-      if ( !empty($params['par_donor_name'])) {
-        $params['par_donor_name'] = $params['par_donor_name'].";".$key.", ".implode( ' & ' ,  $value );
-      } else {
-        $params['par_donor_name'] = $key.", ".implode( ' & ' ,  $value );
-      }
+    $name = NULL;
+    $records = array();
+    $query = "SELECT first_name, last_name FROM civicrm_contact WHERE external_identifier LIKE 'D-" . $result[1] . "%';";
+    $contactDAO = CRM_Core_DAO::executeQuery($query);
+    while ($contactDAO->fetch()) {
+      $records[trim($contactDAO->last_name)][] = trim($contactDAO->first_name);
     }
-        
-    $params['par_donor_name']  = ltrim( $params['par_donor_name'], ";" );
+    foreach ($records as $key => $value) {
+      if (!empty($name)) {
+        $name = $name." & ".$key.", ".implode(' & ' , $value);
+      } 
+      else {
+        $name = $key.", ".implode(' & ' , $value);
+      }
+    }   
+    $params['par_donor_name'] = $name;
     
     if (property_exists( $objectRef, 'address' ) && !empty($objectRef->address[0])) {
       if ( property_exists( $objectRef->address[0],'street_address' ) ) {
