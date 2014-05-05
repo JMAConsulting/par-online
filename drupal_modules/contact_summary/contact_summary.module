@@ -541,7 +541,7 @@ function contact_summary_civicrm_pageRun( &$page ) {
         continue;
       }
       $row = array($values['fields'][49]['field_value'], $values['fields'][50]['field_value']);
-      $serializeData = unserialize($values['fields'][49]['field_value']);
+      $serializeData = unserialize($values['fields'][51]['field_value']);
       foreach($columns as $column) {
         if (!in_array($column, array('Changed By', 'Change Date'))) {
           $row[] = CRM_Utils_Array::value($column, $serializeData, '');

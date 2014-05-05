@@ -146,6 +146,7 @@ function prepareContributionParams(){
     data = data+'old_status='+cj('#old_status').val()+'&';
     data = data+'pricesetid='+cj('#pricesetid').val()+'&';
     data = data+'nsf='+cj('input[name=nsf]:checked').val()+'&';
+    data = data+'file_id='+cj('#file_id').val()+'&';
     cj('#instrument-deatils td input').each( function(){
          var id = cj(this).attr('id');
 	 var value = cj(this).val( );
