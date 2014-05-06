@@ -172,6 +172,18 @@ function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
       }
       $links[23]['title'] = 'My Dashboard';
       $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
+      if (in_array($_SESSION[ 'CiviCRM' ][ 'userID' ], $sysadmins)) {
+        $links[] = array(
+          'title' => 'Monthly Sync to Legacy',
+          'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
+          'ref' => 'montly-sync-legacy'
+        );
+        $links[] = array(
+          'title' => 'Sync from Legacy',
+          'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
+          'ref' => 'sync-legacy'
+        );
+      }
       $links[] = array(
         'title' => 'Logout',
         'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),

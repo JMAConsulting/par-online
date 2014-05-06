@@ -37,6 +37,7 @@
 		</div>
 	</div>
 </div>
+<div id = 'sync-dialog'></div>
 <div class='clear'></div>
 {literal}
 <script>
@@ -58,6 +59,62 @@ cj('#crm-create-new-link').click(function(event) {
 	cj('#crm-create-new-list').toggle();
 	event.stopPropagation();
 	});
+cj('#crm-create-new-list a').click(function(event){ 
+  if (cj(this).hasClass('crm-montly-sync-legacy') || cj(this).hasClass('crm-sync-legacy')) {
+   var isMonthlySync = 0;
+   var diaText = '';
+   if (cj(this).hasClass('crm-montly-sync-legacy')) {
+     isMonthlySync = 1;
+     cj("#sync-dialog").html('The monthly synchronization between PAR Legacy and PAR Online will take many hours. PAR Online will not be available for use by Local PAR Admins until a subsequent Sync from Legacy occurs. Please confirm that you would like to proceed with the monthly synchronization.');
+   }
+   else {
+     cj("#sync-dialog").html('The Sync from Legacy will take many hours. During this period Local PAR Admins will not be able to access PAR Online. Please confirm that you would like to proceed with the Sync from Legacy');   	
+   }
+   var url = {/literal}"{crmURL p='civicrm/legacysync' h=0 q='reset=1'}"{literal} + '&isMonthlySync=' + isMonthlySync;
+   var logoutUrl = {/literal}"{crmURL p='civicrm/logout' h=0 q='reset=1'}"{literal};
+   cj('#sync-dialog').dialog({
+     width : 500,
+     height : 200,
+     resizable : false,
+     bgiframe : true,
+     draggable : true,
+     closeOnEscape : false,
+     overlay : { opacity: 0.5, background: "black" },
+     buttons: { 
+       "OK": function() {
+         cj.ajax({
+           type: "POST",
+           url: url,
+           dataType: "json",
+           success: function( response ) {
+           }
+         });
+         cj(this).dialog("close");
+     	 cj("#sync-dialog").html('The Super Admin may log back in but should not change any data until a Synch from Legacy has been completed.');  
+	 cj('#sync-dialog').dialog({
+     	   width : 500,
+     	   height : 200,
+     	   resizable : false,
+    	   bgiframe : true,
+    	   draggable : true,
+   	   closeOnEscape : false,
+     	   overlay : { opacity: 0.5, background: "black" },
+     	   buttons: { 
+       	   "OK": function() {
+             cj(this).dialog("close");
+	     window.location.href = logoutUrl;
+       	   }
+          } 
+         });
+       },
+       "CANCEL": function() { 	 
+	 cj(this).dialog("close"); 
+       }
+      } 
+    });
+    return false;	
+ }
+});
 
 </script>
 

@@ -5,6 +5,8 @@ Class CRM_par_import {
   public $dbName = NULL;
   public $pass = NULL;
   public $userName = NULL;
+  public $monthlySync = FALSE;
+  public $isMonthlySync = FALSE;
 
   function __construct( ) {  
     // you can run this program either from an apache command, or from the cli
@@ -653,9 +655,11 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         $ext_id =  'D-'.$rows[0];
         $extrnal_id = $rows[0];
       }
-      $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c INNER JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
-      if ($idact) {
-        continue;
+      if (!$this->isMonthlySync) {
+        $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c INNER JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
+        if ($idact) {
+          continue;
+        }
       }
 
       if ( !empty( $rows[1] ) ) {
@@ -2239,7 +2243,6 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
   }
 
   function setupImport() {
-    
     if (file_exists($this->par2parOnlinePath.$this->importLog) ) {
       unlink($this->par2parOnlinePath.$this->importLog);
     }
@@ -2249,6 +2252,12 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
     include_once DRUPAL_ROOT.'includes/bootstrap.inc';
     drupal_bootstrap(DRUPAL_BOOTSTRAP_DATABASE);
     
+    $this->monthlySync = CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824');
+      
+    if ($this->monthlySync) {
+      throw new Exception('Only one sync can run at a time.');
+    }
+    CRM_Core_DAO::executeQuery('UPDATE civicrm_option_value SET value = 1 WHERE id = 824');
     if (file_exists($this->par2parOnlinePath.$this->accountFile) && file_exists($this->par2parOnlinePath.$this->donorFile) && file_exists($this->par2parOnlinePath.$this->localAdminFile) && file_exists($this->par2parOnlinePath.$this->organizationFile) && file_exists($this->par2parOnlinePath.$this->transactionFile) && file_exists($this->par2parOnlinePath.$this->transactionNSFFile)) { 
       
       $var =  db_query("update variable set value = 'i:1;' where name = 'maintenance_mode'")->execute();
@@ -2278,8 +2287,11 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
     define('DRUPAL_ROOT',$this->root_path);
     include_once DRUPAL_ROOT.'includes/bootstrap.inc';
     drupal_bootstrap(DRUPAL_BOOTSTRAP_DATABASE);
-    $var =  db_query("update variable set value = 'i:0;' where name = 'maintenance_mode'")->execute();
-    cache_clear_all('variables', 'cache_bootstrap');
+    if (!$this->isMonthlySync) {
+      $var = db_query("update variable set value = 'i:0;' where name = 'maintenance_mode'")->execute();
+      cache_clear_all('variables', 'cache_bootstrap');
+    }
+    CRM_Core_DAO::executeQuery('UPDATE civicrm_option_value SET value = 0 WHERE id = 824');
   }
   function sendMail() {
     if (file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedNSF) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedOrg) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedAdmin) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedDonor) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedCharge) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedTransactions) || file_exists($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notUpdatedTransactions)) { 
@@ -2337,6 +2349,7 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
 
 
 $importObj = new CRM_par_import();
+$importObj->isMonthlySync = CRM_Utils_Array::value(1,$argv);
 try {
   $flag = $importObj->setupImport();
   if ($flag) {
@@ -2404,20 +2417,20 @@ catch(Exception $e) {
 }
 $importObj->createActivity(PAR2PAROnlineImport_ACTIVITY_TYPE_ID, 'PAR Legacy to PAR Online Import', $details);
 $attachFile = FALSE;
-
-try {
-  $importObj->logs("Export par log table - Start @ " . date('Y-m-d H:i:s'));
-  $importObj->exportCSV();
-  $importObj->logs("Export par log table - End @ " . date('Y-m-d H:i:s'));
-  //FIXME: add details
-  $details = '';
-  $attachFile = TRUE;
+if (!$importObj->monthlySync) {
+  try {
+    $importObj->logs("Export par log table - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->exportCSV();
+    $importObj->logs("Export par log table - End @ " . date('Y-m-d H:i:s'));
+    //FIXME: add details
+    $details = '';
+    $attachFile = TRUE;
+  }
+  catch(Exception $e) {
+    $details = 'EXPORT FAILED SINCE : ' . $e->getMessage();
+  }
+  $importObj->createActivity(PAROnline2PAR_ACTIVITY_TYPE_ID, 'PAR Online to PAR Legacy Export', $details, $attachFile);
+  $importObj->sendMail();
+  $importObj->endProcess();
 }
-catch(Exception $e) {
-  $details = 'EXPORT FAILED SINCE : ' . $e->getMessage();
-}
-$importObj->createActivity(PAROnline2PAR_ACTIVITY_TYPE_ID, 'PAR Online to PAR Legacy Export', $details, $attachFile);
-$importObj->sendMail();
-
-$importObj->endProcess();
 ?>

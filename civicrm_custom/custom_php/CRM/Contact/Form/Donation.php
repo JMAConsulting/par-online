@@ -702,4 +702,13 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         CRM_Price_BAO_Set::addTo('civicrm_contribution_recur', $contributionRecurId, $priceSetId);
       }
     }
+    
+    function legacysync() {
+      $syncOption = CRM_Utils_Request::retrieve('isMonthlySync', 'Positive');
+      global $civicrm_root;
+      chdir($civicrm_root. '/bin/');
+      $screenName = 'import-' . date('Ymd');
+      shell_exec('nohup screen -dmS ' . $screenName);
+      shell_exec("php import.php {$syncOption} &");
+    }
 }
