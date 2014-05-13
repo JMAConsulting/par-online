@@ -279,21 +279,22 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         if (!$hasPostValue) {
           $postParams = $_POST;
         }
-        
-        $query ="SELECT civicrm_contribution.id, civicrm_contribution.total_amount, civicrm_contribution.payment_instrument_id, civicrm_contribution.contribution_status_id, civicrm_log_par_donor.par_donor_bank_id, civicrm_log_par_donor.par_donor_branch_id, civicrm_log_par_donor.par_donor_account, civicrm_log_par_donor.other_amount, civicrm_log_par_donor.general_amount, civicrm_log_par_donor.`m&s_amount`AS msamount FROM civicrm_contribution  LEFT JOIN civicrm_log_par_donor ON civicrm_contribution.contact_id = civicrm_log_par_donor.primary_contact_id WHERE civicrm_contribution.id = " . $postParams['contribution_id'];
-        $dao = CRM_Core_DAO::executeQuery($query);
-        while ($dao->fetch()){
-          $data1 = array(
-            'Status' => 'In Progress',
-            'Payment Instrument' => $dao->payment_instrument_id,
-            'Bank #' => $dao->par_donor_bank_id,
-            'Branch #' => $dao->par_donor_branch_id,
-            'Account #' => $dao->par_donor_account,
-            'General' => $dao->general_amount,
-            'M&S' => $dao->msamount,
-            'Other' => $dao->other_amount,
-            'Total' => $dao->total_amount,
-          );
+        if(!empty($postParams['contribution_id'])){
+          $query ="SELECT civicrm_contribution.id, civicrm_contribution.total_amount, civicrm_contribution.payment_instrument_id, civicrm_contribution.contribution_status_id, civicrm_log_par_donor.par_donor_bank_id, civicrm_log_par_donor.par_donor_branch_id, civicrm_log_par_donor.par_donor_account, civicrm_log_par_donor.other_amount, civicrm_log_par_donor.general_amount, civicrm_log_par_donor.`m&s_amount`AS msamount FROM civicrm_contribution  LEFT JOIN civicrm_log_par_donor ON civicrm_contribution.contact_id = civicrm_log_par_donor.primary_contact_id WHERE civicrm_contribution.id = " . $postParams['contribution_id'];
+          $dao = CRM_Core_DAO::executeQuery($query);
+          while ($dao->fetch()){
+            $data1 = array(
+              'Status' => 'In Progress',
+              'Payment Instrument' => $dao->payment_instrument_id,
+              'Bank #' => $dao->par_donor_bank_id,
+              'Branch #' => $dao->par_donor_branch_id,
+              'Account #' => $dao->par_donor_account,
+              'General' => $dao->general_amount,
+              'M&S' => $dao->msamount,
+              'Other' => $dao->other_amount,
+              'Total' => $dao->total_amount,
+            );
+          } 
         } 
         
         if (!CRM_Utils_Array::value('cid', $_GET)) {
