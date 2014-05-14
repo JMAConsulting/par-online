@@ -1,53 +1,10 @@
 <?php
-
-Class CRM_par_import {
-  
-  public $dbName = NULL;
-  public $pass = NULL;
-  public $userName = NULL;
-  public $monthlySync = FALSE;
-  public $isMonthlySync = FALSE;
+require_once 'importExport.php';
+Class CRM_par_import extends CRM_par_ImportExport {
 
   function __construct( ) {  
     // you can run this program either from an apache command, or from the cli
-    $this->initialize( );
-  }
-  function initialize( ) {
-    $path = explode('sites', getcwd()); 
-    $this->root_path = $path[0];
-    require_once $this->root_path.'sites/all/modules/civicrm/civicrm.config.php';
-    require_once $this->root_path.'sites/all/modules/civicrm/CRM/Core/Config.php';        
-    $config = CRM_Core_Config::singleton();
-    $getDBdetails = explode( '/',  $config->dsn);
-    
-    $this->par2parOnlinePath = $this->root_path.'sites/default/files/PAR2PAROnline/';
-    $this->parOnline2ParPath = $this->root_path.'sites/default/files/PAROnline2PAR/';
-    $this->newDirectory = date('Ymd_His');
-    $this->accountFile = 'par_charge_accounts.csv';
-    $this->donorFile = 'par_donor.csv';
-    $this->localAdminFile = 'par_local_admin.csv';
-    $this->organizationFile = 'par_organization.csv';
-    $this->transactionFile = 'par_donor_transactions.csv';
-    $this->transactionNSFFile = 'par_donor_transactions_nsf.csv';
-    $this->synchFile = 'civicrm_log_par_donor.txt';
-    $this->notImportedNSF = 'notImportedDonorNsfData.csv';
-    $this->notImportedOrg = 'notImportedOrganizations.csv';
-    $this->notImportedAdmin = 'notImportedAdmin.csv';
-    $this->notImportedDonor = 'notImportedDonor.csv';
-    $this->notImportedCharge = 'notImportedCharge.csv';
-    $this->notImportedTransactions = 'notImportTransactions.csv';
-    $this->notUpdatedTransactions = 'notUpdatedTransactions.csv';
-    $this->error = array( 0 => "Error Reason");
-    $this->importLog = 'import.log';
-    $this->dbBackup = "dbBackup";     
-    $this->dbName = explode( '?',  $getDBdetails[3]);
-    $this->dbName = $this->dbName[0];
-    $this->userName = explode( '@', $getDBdetails[2] );
-    $this->userName = explode( ':', $this->userName[0] );
-    $this->pass = $this->userName[1];
-    $this->userName = $this->userName[0];
-    $this->flag = FALSE;
-    $this->localhost = '10.50.0.30';
+    parent::__construct();
   }
   
   function importDonorNsfData() {
@@ -2246,12 +2203,6 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
     if (file_exists($this->par2parOnlinePath.$this->importLog) ) {
       unlink($this->par2parOnlinePath.$this->importLog);
     }
-      
-    define('DRUPAL_ROOT',$this->root_path);
-    
-    include_once DRUPAL_ROOT.'includes/bootstrap.inc';
-    drupal_bootstrap(DRUPAL_BOOTSTRAP_DATABASE);
-    
     $this->monthlySync = CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824');
       
     if ($this->monthlySync) {
@@ -2259,13 +2210,10 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
     }
     CRM_Core_DAO::executeQuery('UPDATE civicrm_option_value SET value = 1 WHERE id = 824');
     if (file_exists($this->par2parOnlinePath.$this->accountFile) && file_exists($this->par2parOnlinePath.$this->donorFile) && file_exists($this->par2parOnlinePath.$this->localAdminFile) && file_exists($this->par2parOnlinePath.$this->organizationFile) && file_exists($this->par2parOnlinePath.$this->transactionFile) && file_exists($this->par2parOnlinePath.$this->transactionNSFFile)) { 
-      
-      $var =  db_query("update variable set value = 'i:1;' where name = 'maintenance_mode'")->execute();
-      cache_clear_all('variables', 'cache_bootstrap');
+      parent::startProcess();
       
       $oldmask = umask(0);
       mkdir($this->par2parOnlinePath.$this->newDirectory, 01777);
-      mkdir($this->parOnline2ParPath.$this->newDirectory, 01777);
       umask($oldmask);
       $oldmask = umask(0);
       mkdir($this->par2parOnlinePath.$this->newDirectory.'/'.$this->dbBackup, 01777);
@@ -2319,37 +2267,10 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
     fwrite($file, $data . "\n");
     fclose($file);
   }
-  function createActivity($activityTypeID, $subject, $description, $attachFile = FALSE) {
-    require_once('CRM/Contact/BAO/Group.php');
-    $params = array( 
-      'source_contact_id' => 1,
-      'activity_type_id' => $activityTypeID,
-      'assignee_contact_id' => array_keys(CRM_Contact_BAO_Group::getGroupContacts(SYSTEM_ADMIN)),
-      'subject' => $subject,
-      'details' => $description,
-      'activity_date_time' => date('Y-m-d H:i:s'),
-      'status_id' => 2,
-      'priority_id' => 2,
-      'version' => 3,
-    );
-    if ($attachFile) {
-      $newFileName = 'civicrm_log_par_donor_' . md5(date('YmdHis')) . '.txt';
-      $newDirectory = $this->parOnline2ParPath . '/' . $this->newDirectory . '/';
-      copy($newDirectory . $this->synchFile, $newDirectory . $newFileName);
-      $params['attachFile_1'] = array(
-        'uri' => $newDirectory . $newFileName,
-        'type' => 'text/csv',
-        'location' => $newDirectory . $newFileName,
-        'upload_date' => date('YmdHis'),
-      );
-    }
-    civicrm_api('activity', 'create', $params);
-  }
 }
 
-
 $importObj = new CRM_par_import();
-$importObj->isMonthlySync = CRM_Utils_Array::value(1,$argv);
+$importObj->isMonthlySync = CRM_Utils_Array::value(1, $argv);
 try {
   $flag = $importObj->setupImport();
   if ($flag) {
