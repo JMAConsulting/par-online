@@ -1504,7 +1504,6 @@ LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contr
 LEFT JOIN civicrm_value_is_online_17 cvc ON clpd.primary_contact_id = cvc.entity_id
 SET  `log_action` = 'Delete',
 `log_time` = now(),
-removed = 1,
 cc.is_deleted = 1,
 ccr.contribution_status_id = 1
 WHERE `log_time` < CURDATE() AND 
@@ -1513,6 +1512,15 @@ CASE
   THEN 0
   ELSE 1   
 END;\n";
+      $deleteQuery .= "\n UPDATE civicrm_relationship cr
+INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a AND cc.is_deleted = 1 and cr.relationship_type_id = " . HEAD_OF_HOUSEHOLD . "
+LEFT JOIN civicrm_contact cc1 ON cc1.id = cr.contact_id_b
+LEFT JOIN civicrm_relationship cr1 on cr1.contact_id_b = cc1.id AND cr1.relationship_type_id = " . MEMBER_OF_HOUSEHOLD . "
+LEFT JOIN civicrm_contact cc2 on cc2.id = cr1.contact_id_a AND cc2.is_deleted =0
+SET
+  cc1.is_deleted ='1',
+  cc2.is_deleted ='1'; \n";
+
       fwrite($newRecordsToInsert, $deleteQuery);
     }
     self::logs("no of records = ".$count);
@@ -2138,49 +2146,6 @@ WHERE contribution_status_id = 5 and removed = 1;\n';
     }
   }
   
-  public function exportCSV( ) {
-    $con = mysql_connect( $this->localhost, $this->userName, $this->pass );
-    if (!$con) {
-      die('Could not connectss: ' . mysql_error());
-    }
-    mysql_select_db( "$this->dbName", $con);
-    $getTable = "SELECT  clpd.*, IFNULL(activated__48,0) is_online_par, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
-FROM civicrm_log_par_donor clpd
-LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = clpd.primary_contact_id
-LEFT JOIN civicrm_contact ON civicrm_contact.id = cr.contact_id_b
-LEFT JOIN civicrm_value_is_online_17 cv ON cv.entity_id = clpd.primary_contact_id
-WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_ID ;
-    $table  = mysql_query ( $getTable ) or die ( "Sql error : " . mysql_error( ) );
-    $exportCSV  = fopen($this->parOnline2ParPath . '/' . $this->newDirectory . '/' . $this->synchFile, 'w' );
-    
-    // fetch a row and write the column names out to the file
-    $row = mysql_fetch_assoc($table);
-    $line = "";
-    $comma = "";
-    foreach($row as $name => $value) {
-      $line .= $comma . '"' . str_replace('"', '""', $name) . '"';
-      $comma = "\t";
-    }
-    $line .= "\n";
-    fputs($exportCSV, $line);
- 
-    // remove the result pointer back to the start
-    mysql_data_seek($table, 0);
-
-    // and loop through the actual data
-    while($row = mysql_fetch_assoc($table)) {
-      $line = "";
-      $comma = "";
-      foreach($row as $value) {
-        $line .= $comma . '"' . str_replace('"', '""', $value) . '"';
-        $comma = "\t";
-      }
-      $line .= "\n";
-      fputs($exportCSV, $line);
-    }
-    fclose($exportCSV);
-  }
-  
   function startExport() {
     define('DRUPAL_ROOT', $this->root_path );
     
@@ -2204,7 +2169,7 @@ WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_
       unlink($this->par2parOnlinePath.$this->importLog);
     }
     $this->monthlySync = CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824');
-      
+    
     if ($this->monthlySync) {
       throw new Exception('Only one sync can run at a time.');
     }
