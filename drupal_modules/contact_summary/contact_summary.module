@@ -158,6 +158,12 @@ function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
         $links[25]['url'] = CRM_Utils_System::url('civicrm/contribute/search',"reset=1");
         $links[26]['title'] = 'Import Donations';
         $links[26]['url'] = CRM_Utils_System::url('civicrm/contribute/import',"reset=1");
+        if (variable_get('maintenance_mode')) {
+          $links[] = array(
+            'title' => 'Set PAR Online online',
+            'url' => CRM_Utils_System::url('admin/config/development/maintenance'),
+          );
+        }
       }
       if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
         $links[0]['title'] = 'Add New Donor / Supporter / Member';
