@@ -1766,7 +1766,12 @@ INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_statu
         $setLOGNULL = "SET @logId := '';\n";
         $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$ext_identifier}';\n";
                 
-        $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, external_identifier, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, @contactId, '{$ext_identifier}', '{$ms_amount}', '{$general_amount}', '{$other_amount}' ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, `m&s_amount` = '{$ms_amount}', general_amount = '{$general_amount}', other_amount = '{$other_amount}', log_time = now();\n";
+        $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, external_identifier, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, @contactId, '{$ext_identifier}', '{$ms_amount}', '{$general_amount}', '{$other_amount}' ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, `m&s_amount` = '{$ms_amount}', general_amount = '{$general_amount}', other_amount = '{$other_amount}', log_time = now();\n
+
+INSERT IGNORE INTO civicrm_contribution_soft(contact_id, contribution_id, amount, currency)
+SELECT contact_id_b, @contrId, '{$total_amount}', 'USD' FROM civicrm_relationship 
+WHERE is_active = 1 AND relationship_type_id = " . HEAD_OF_HOUSEHOLD . " AND contact_id_a = @contactId;
+\n";
     
         $insert_all_rows  = $contact_id.$setContrNULL.$contrId.$contrib.$contrId.$orgId.$generalPFID.$generalPFValue.$setGeneraNULL.$generalLI.$lineItemGeneral.$msPFID.$msPFValue.$setMsNULL.$msLI.$lineItemMS.$otherPFID.$otherPFValue.$setOtherNULL.$otherLI.$lineItemOther.$setLOGNULL.$logId.$insertParLog;
        
