@@ -1518,8 +1518,10 @@ LEFT JOIN civicrm_contact cc1 ON cc1.id = cr.contact_id_b
 LEFT JOIN civicrm_relationship cr1 on cr1.contact_id_b = cc1.id AND cr1.relationship_type_id = " . MEMBER_OF_HOUSEHOLD . "
 LEFT JOIN civicrm_contact cc2 on cc2.id = cr1.contact_id_a AND cc2.is_deleted =0
 SET
-  cc1.is_deleted ='1',
-  cc2.is_deleted ='1'; \n";
+  cc1.is_deleted = 1,
+  cc2.is_deleted = 1,
+  cr.is_active = 0,
+  cr1.is_active = 0;\n";
 
       fwrite($newRecordsToInsert, $deleteQuery);
     }
