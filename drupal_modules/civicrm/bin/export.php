@@ -8,13 +8,21 @@ Class CRM_par_export extends CRM_par_ImportExport {
 }  
 
 $exportObj = new CRM_par_export();
-$exportObj->startProcess();
-$exportObj->exportCSV();
+if ($exportObj->monthlySync) {
+  $details = 'EXPORT FAILED SINCE :Only one sync can run at a time';
+  $attachFile = FALSE;
+}
+else {
+  $exportObj->startProcess();
+  $exportObj->exportCSV();
+  $details = '';
+  $attachFile = TRUE;
+}
 $exportObj->createActivity( 
   PAROnline2PAR_ACTIVITY_TYPE_ID,
   'PAR Online to PAR Legacy Export', 
-  '', 
-  TRUE 
+  $details, 
+  $attachFile
 );
 
 ?>

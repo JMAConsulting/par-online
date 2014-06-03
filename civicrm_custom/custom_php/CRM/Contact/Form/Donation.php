@@ -707,9 +707,15 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
     function legacysync() {
       $syncOption = CRM_Utils_Request::retrieve('isMonthlySync', 'Positive');
       global $civicrm_root;
+      if ($syncOption) {
+        $file = 'import';
+      }
+      else {
+        $file = 'export';        
+      }
       chdir($civicrm_root. '/bin/');
       $screenName = 'import-' . date('Ymd');
       shell_exec('nohup screen -dmS ' . $screenName);
-      shell_exec("php import.php {$syncOption} &");
+      shell_exec("php {$file}.php {$syncOption} &");
     }
 }

@@ -2175,7 +2175,6 @@ WHERE contribution_status_id = 5 and removed = 1;\n';
     if (file_exists($this->par2parOnlinePath.$this->importLog) ) {
       unlink($this->par2parOnlinePath.$this->importLog);
     }
-    $this->monthlySync = CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824');
     
     if ($this->monthlySync) {
       throw new Exception('Only one sync can run at a time.');

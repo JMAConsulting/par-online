@@ -61,10 +61,9 @@ cj('#crm-create-new-link').click(function(event) {
 	});
 cj('#crm-create-new-list a').click(function(event){ 
   if (cj(this).hasClass('crm-montly-sync-legacy') || cj(this).hasClass('crm-sync-legacy')) {
-   var isMonthlySync = 0;
-   var diaText = '';
+   var isMonthlySync = 1;
    if (cj(this).hasClass('crm-montly-sync-legacy')) {
-     isMonthlySync = 1;
+     isMonthlySync = 0;
      cj("#sync-dialog").html('The monthly synchronization between PAR Legacy and PAR Online will take many hours. PAR Online will not be available for use by Local PAR Admins until a subsequent Sync from Legacy occurs. Please confirm that you would like to proceed with the monthly synchronization.');
    }
    else {

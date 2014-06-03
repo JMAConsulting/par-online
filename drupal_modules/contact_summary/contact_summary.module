@@ -185,7 +185,7 @@ function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
           'ref' => 'montly-sync-legacy'
         );
         $links[] = array(
-          'title' => 'Sync from Legacy',
+          'title' => 'Monthly Sync from Legacy',
           'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
           'ref' => 'sync-legacy'
         );
