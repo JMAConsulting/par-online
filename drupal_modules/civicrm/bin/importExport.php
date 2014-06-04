@@ -98,12 +98,13 @@ Class CRM_par_ImportExport {
     define('DRUPAL_ROOT',$this->root_path);
     include_once DRUPAL_ROOT.'includes/bootstrap.inc';
     drupal_bootstrap(DRUPAL_BOOTSTRAP_DATABASE);
-
-    $result = db_query("SELECT value FROM `variable` WHERE  name = 'maintenance_mode'");
-    if (unserialize($result->fetchField())) {
-      return;
+    if ($this->isMonthlySync) {
+      $result = db_query("SELECT value FROM `variable` WHERE  name = 'maintenance_mode'");
+      if (unserialize($result->fetchField())) {
+        return;
+      }
+      $var = db_query("update variable set value = 'i:1;' where name = 'maintenance_mode'")->execute();
     }
-    $var = db_query("update variable set value = 'i:1;' where name = 'maintenance_mode'")->execute();
     cache_clear_all('variables', 'cache_bootstrap');
   }
 

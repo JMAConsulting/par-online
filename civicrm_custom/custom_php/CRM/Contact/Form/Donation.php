@@ -716,6 +716,6 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
       chdir($civicrm_root. '/bin/');
       $screenName = 'import-' . date('Ymd');
       shell_exec('nohup screen -dmS ' . $screenName);
-      shell_exec("php {$file}.php {$syncOption} &");
+      shell_exec("php {$file}.php 1 &");
     }
 }

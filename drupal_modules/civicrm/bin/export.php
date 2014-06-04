@@ -8,6 +8,7 @@ Class CRM_par_export extends CRM_par_ImportExport {
 }  
 
 $exportObj = new CRM_par_export();
+$exportObj->isMonthlySync = CRM_Utils_Array::value(1, $argv);
 if ($exportObj->monthlySync) {
   $details = 'EXPORT FAILED SINCE :Only one sync can run at a time';
   $attachFile = FALSE;
