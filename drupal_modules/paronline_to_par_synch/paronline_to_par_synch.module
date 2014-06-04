@@ -96,7 +96,7 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
     $params['primary_contact_id'] = $objectRef->id;
     $name = NULL;
     $records = array();
-    $query = "SELECT first_name, last_name FROM civicrm_contact WHERE external_identifier LIKE 'D-" . $result[1] . "%';";
+    $query = "SELECT first_name, last_name FROM civicrm_contact WHERE is_deleted = 0 AND external_identifier LIKE 'D-" . $result[1] . "%';";
     $contactDAO = CRM_Core_DAO::executeQuery($query);
     while ($contactDAO->fetch()) {
       $records[trim($contactDAO->last_name)][] = trim($contactDAO->first_name);
