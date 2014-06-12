@@ -47,6 +47,8 @@ implements CRM_Contact_Form_Search_Interface {
 
         $this->_columns = array( ts('Name') => 'donor_name'  ,
                                  ts('PAR ID') => 'external_identifier',
+                                 ts('NSF') => 'nsf',
+                                 ts('Status') => 'contribution_status_id',
                                  ts('Primary E-mail') => 'email',
                                  ts('PC Name') => 'pc_name',
                                  ts('Conference' )=> 'conf_name',
@@ -103,7 +105,7 @@ implements CRM_Contact_Form_Search_Interface {
       $includeContactIDs = FALSE) {
       $selectClause = "
 Distinct(contact_a.id) as contact_id, '' as pc_name, '' as conf_name, contact_a.display_name as donor_name,
-contact_a.external_identifier as external_identifier, email.email as email, activated__48";
+contact_a.external_identifier as external_identifier, email.email as email, activated__48, nsf, NULL as contribution_status_id ";
           
       if (CRM_Utils_Array::value('external_identifier', $this->_formValues)) {
         $selectClause .= ", cast(SUBSTRING_INDEX(REPLACE(contact_a.external_identifier, 'D-', ''),'-',1) as unsigned) as int_external_identifier";
@@ -134,6 +136,7 @@ LEFT JOIN civicrm_group_contact  AS supporter   ON ( contact_a.id = supporter.co
 
 LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND email.is_primary = 1 )
 LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id 
+LEFT JOIN civicrm_log_par_donor clpd ON clpd.primary_contact_id = contact_a.id
 
  ";
     }
@@ -188,7 +191,6 @@ LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id
         if ( ! empty( $clause ) ) {
             $where .= ' AND ' . implode( ' AND ', $clause );
         }
-        
         return $this->whereClause( $where, $params );
     }
 
@@ -228,6 +230,8 @@ LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id
     function alterRow( &$row ) {
         require_once 'CRM/Core/DAO.php';
         require_once 'api/api.php';
+        require_once 'CRM/Contribute/PseudoConstant.php';
+        $status = CRM_Contribute_PseudoConstant::contributionStatus();
         $params = array( 
                         'contact_id_a' => $row['contact_id'],
                         'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
@@ -251,6 +255,11 @@ LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id
         } else {
             $row['pc_name'] = null;
             $row['conf_name'] = null;
+        }
+        
+        $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
+        if ($contributionStatus) {
+          $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
         }
         return $row;
     }
