@@ -1498,6 +1498,15 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
       }
     }
     if (!empty($insert_all_rows)) {
+      $extraClause = '';
+      if (!$this->isMonthlySync) {
+        $extraClause = ' AND 
+          CASE 
+            WHEN cvc.entity_id IS NOT NULL AND activated__48 = 1
+            THEN 0
+            ELSE 1   
+          END ';
+      }
       $deleteQuery = "\n UPDATE civicrm_log_par_donor clpd
 LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
 LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contribution_status_id = 5
@@ -1506,12 +1515,8 @@ SET  `log_action` = 'Delete',
 `log_time` = now(),
 cc.is_deleted = 1,
 ccr.contribution_status_id = 1
-WHERE `log_time` < CURDATE() AND 
-CASE 
-  WHEN cvc.entity_id IS NOT NULL AND activated__48 = 1
-  THEN 0
-  ELSE 1   
-END;\n";
+WHERE `log_time` < CURDATE() {$extraClause};
+\n";
       $deleteQuery .= "\n UPDATE civicrm_relationship cr
 INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a AND cc.is_deleted = 1 and cr.relationship_type_id = " . HEAD_OF_HOUSEHOLD . "
 LEFT JOIN civicrm_contact cc1 ON cc1.id = cr.contact_id_b
@@ -1521,6 +1526,8 @@ SET
   cc1.is_deleted = 1,
   cc2.is_deleted = 1,
   cr.is_active = 0,
+  cr.end_date = now(),
+  cr1.end_date = now(),
   cr1.is_active = 0;\n";
 
       fwrite($newRecordsToInsert, $deleteQuery);
