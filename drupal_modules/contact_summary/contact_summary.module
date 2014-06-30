@@ -930,6 +930,11 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
 
 function contact_summary_civicrm_pre( $op, $objectName, $objectId, &$objectRef ) {
 
+  // UCCPAR-478
+  if ($objectName == 'Profile' && $objectRef['uf_group_id'] == CONTACT_PROFILE_ID
+    && !in_array($_SESSION[ 'CiviCRM' ][ 'userID' ], getSysAdmins())) {
+    $objectRef['custom_48'] = 1;
+  }
     if( $op == 'delete' && $objectName == 'Relationship' ) {
         $getRelationParam = array( 'version'  => 3,
                                    'id'       => $objectId );
@@ -1257,7 +1262,7 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
 }
 
 function contact_summary_civicrm_postProcess( $formName, &$form ){
-    if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
+    if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){      
       $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
       $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
       if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
