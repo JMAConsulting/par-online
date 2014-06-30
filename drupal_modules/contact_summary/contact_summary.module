@@ -539,7 +539,7 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
 function contact_summary_civicrm_pageRun( &$page ) { 
   if ($page->getVar('_name') == 'CRM_Contact_Page_View_CustomData' && $page->_groupId == 18) {
     $data =& CRM_Core_Smarty::singleton()->get_template_vars('viewCustomData');
-    rsort($data[18]);
+    krsort($data[18]);
     $columns = array(
       'Changed By',
       'Change Date',
