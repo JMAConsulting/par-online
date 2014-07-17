@@ -516,7 +516,24 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         }
       }
     }
-
+    
+    if ($count) {
+      $config = CRM_Core_Config::singleton();
+      $drupalDb = DB::parseDSN($config->userFrameworkDSN);
+      $query = "UPDATE civicrm_contact cc
+LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = cc.id AND cr.relationship_type_id  IN (11, 12) AND cr.is_active = 1
+LEFT JOIN civicrm_uf_match cum ON cum.contact_id = cc.id
+LEFT JOIN {$drupalDb['database']}.users u ON u.uid = cum.uf_id
+SET cr.is_active = 0,
+cc.is_deleted = 1,
+modified_date = now(),
+cr.end_date = now(),
+u.status = 0
+WHERE cc.contact_type = 'Individual' AND cc.external_identifier LIKE 'A-%'
+AND modified_date < CURDATE();\n";
+      fwrite($newRecordsToInsert, $query); 
+    }
+    
     self::logs("no of records = ".$count);
     self::logs("no of invalid records = ".$others);
     fclose($read);
