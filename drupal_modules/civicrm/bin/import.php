@@ -145,7 +145,7 @@ Class CRM_par_import extends CRM_par_ImportExport {
       if(!empty($ext_id))
         { 
           $insert_all_rows='';
-          $insert_org = "INSERT INTO civicrm_contact ( external_identifier, contact_type, contact_sub_type, sort_name, display_name, organization_name) values ('{$ext_id}','Organization', '{$contact_subtype}','{$organization_name}','{$organization_name}','{$organization_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_sub_type = '{$contact_subtype}', sort_name = '{$organization_name}', display_name = '{$organization_name}', organization_name = '{$organization_name}';\n";
+          $insert_org = "INSERT INTO civicrm_contact ( external_identifier, contact_type, contact_sub_type, sort_name, display_name, organization_name) values ('{$ext_id}','Organization', '{$contact_subtype}','{$organization_name}','{$organization_name}','{$organization_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_sub_type = '{$contact_subtype}', sort_name = '{$organization_name}', display_name = '{$organization_name}', organization_name = '{$organization_name}', modified_date = now(), is_deleted = 1;\n";
   
           $contact_id = $setContactNULL = $setParentNULL = $setGenNULL = $setSetNULL = $setGPFNULL = $setGPFVNULL = $setMSNULL = $setMSPFNULL = $setMSPFVNULL = $setONULL = $setOPFINULL = $setOPFVNULL = $parent_id = $general_id = $price_setId = $general_price_fieldId = $ms_pfvId = $ms_id = $other_pfvId = $general_pfvId = $ms_price_fieldId = $other_id = $other_price_fieldId = $parent_contribution_type = $general_contribution_type =  $insert_price_set = $insert_general_price_field = $insert_general_price_field_value = $ms_contribution_type = $insert_ms_price_field = $insert_ms_price_field_value = $other_contribution_type = $insert_other_price_field = $insert_other_price_field_value = null;
           
@@ -318,7 +318,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         $setRelNULL = "SET @relID := '';\n"; 
         $relID = "SELECT @relID := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND contact_id_b = '{$id}' AND relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-        $insert_org_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values ( @relID,@contactId, '{$id}', ".IS_PART_OF_RELATION_TYPE_ID.", 1) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$id}' ;\n";
+        $insert_org_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active, start_date) values ( @relID,@contactId, '{$id}', ".IS_PART_OF_RELATION_TYPE_ID.", 1, now()) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$id}' ;\n";
       }
       $insert_all_rows = $setContNULL.$contact_id.$setRelNULL.$relID.$insert_org_rel;
       fwrite($newRecordsToInsert,$insert_all_rows);
@@ -457,7 +457,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
           $insert_all_rows =''; 
           $insert_admin = $setContNULL = $setGrpNULL = $setAddNULL = $setEmailNULL = $setPhoneNULL = $setFaxNULL = $contact_id = $groupId = $relID = $addressId = $emailId = $phoneId = $faxId = $delete = $individual_contact_grp = $insert_donor_rel = null;
           if ( !empty( $ext_id )  ) {
-            $insert_admin = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name  ) values ('{$ext_id}','Individual', '{$sort_name}', '{$first_name}', '{$last_name}', '{$display_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_type = 'Individual', sort_name = '{$sort_name}', first_name = '{$first_name}', last_name = '{$last_name}', display_name = '{$display_name}';\n";
+            $insert_admin = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name  ) values ('{$ext_id}','Individual', '{$sort_name}', '{$first_name}', '{$last_name}', '{$display_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_type = 'Individual', sort_name = '{$sort_name}', first_name = '{$first_name}', last_name = '{$last_name}', display_name = '{$display_name}', modified_date = now(), is_deleted = 1;\n";
             $individual_contact_grp = null;
             $setContNULL = "SET @contactId := '';\n"; 
             $contact_id = "SELECT @contactId := id FROM civicrm_contact where external_identifier ='{$ext_id}';\n";
@@ -576,7 +576,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         $setRelNULL = "SET @relID := '';\n";
         $relID = "SELECT @relID := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND contact_id_b = '{$id}' AND relationship_type_id = {$relationshipType} AND is_active = 1;\n";
               
-        $insert_admin_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values ( @relID,@contactId, '{$id}',{$relationshipType} , 1) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$id}' ;\n";
+        $insert_admin_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active, start_date) values ( @relID,@contactId, '{$id}',{$relationshipType} , 1, now()) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$id}' ;\n";
         $setGrpNULL = "SET @grpID := '';\n";
         $groupId = "SELECT @grpID := id FROM civicrm_group_contact WHERE group_id = {$groupID} AND contact_id = @contactId;\n";
         
@@ -1302,7 +1302,7 @@ END;\n";
             $display_name2 =  addslashes($display_name2);
             $sort_name2 =  addslashes($sort_name2);
            
-            $insert_donor = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name  ) values ('{$ext_id}','Individual', '{$sort_name}', '{$first_name1}', '{$last_name1}', '{$display_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_type = 'Individual', sort_name = '{$sort_name}', first_name = '{$first_name1}', last_name = '{$last_name1}', display_name = '{$display_name}';\n";
+            $insert_donor = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name ) values ('{$ext_id}','Individual', '{$sort_name}', '{$first_name1}', '{$last_name1}', '{$display_name}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}', contact_type = 'Individual', sort_name = '{$sort_name}', first_name = '{$first_name1}', last_name = '{$last_name1}', display_name = '{$display_name}', modified_date = now(), is_deleted = 1;\n";
             $individual_contact_grp = null;
             $setContNULL = "SET @contactId := '';\n";
             $contact_id = "SELECT @contactId := id FROM civicrm_contact where external_identifier ='{$ext_id}';\n";
@@ -1330,9 +1330,9 @@ END;\n";
               $setRelNULL = "SET @relID := '';\n";
               $relID = "SELECT @relID := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND contact_id_b = '{$idb}' AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-              $insert_donor_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values ( @relID, @contactId, '{$idb}', ".SUPPORTER_RELATION_TYPE_ID.", 1) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$idb}' ;\n
+              $insert_donor_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active, start_date) values ( @relID, @contactId, '{$idb}', ".SUPPORTER_RELATION_TYPE_ID.", 1, now()) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$idb}' ;\n
 UPDATE civicrm_relationship 
-SET `is_active` = 0
+SET `is_active` = 0, end_date = now()
 WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b != '{$idb}';\n";
             }
             $insertCustom = '';
@@ -1414,14 +1414,14 @@ WHERE external_identifier = {$extrnal_id} AND removed = {$donor_removed};";
           
           $insert_donor_houshold = $household_id = $houseGroupId = $houseRelID = $houseAddressId = $delete_other = $household_contact_grp = $insert_donor1_rel = null;
           if ( !empty( $first_name2 ) && !empty( $last_name2 ) ) {
-            $insert_donor_houshold = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name ) values ('{$ext_id}-1','Individual', '{$sort_name2}',  '{$first_name2}', '{$last_name2}','{$display_name2}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}-1', contact_type = 'Individual', sort_name = '{$sort_name2}', first_name = '{$first_name2}', last_name = '{$last_name2}', display_name = '{$display_name2}';\n";
+            $insert_donor_houshold = "INSERT INTO civicrm_contact ( external_identifier, contact_type, sort_name, first_name, last_name, display_name ) values ('{$ext_id}-1','Individual', '{$sort_name2}',  '{$first_name2}', '{$last_name2}','{$display_name2}') ON DUPLICATE KEY UPDATE external_identifier = '{$ext_id}-1', contact_type = 'Individual', sort_name = '{$sort_name2}', first_name = '{$first_name2}', last_name = '{$last_name2}', display_name = '{$display_name2}', modified_date = now(), is_deleted = 1;\n";
             $setHCNULL = "SET @householdId := '';\n";
             $household_id = "SELECT @householdId := id FROM civicrm_contact where external_identifier ='{$ext_id}-1';\n";
             $setHGNULL = "SET @houseGrpID := '';\n";
             $houseGroupId = "SELECT @houseGrpID := id FROM civicrm_group_contact WHERE group_id = 3 AND contact_id = @householdId;\n";
             if ($pardonorName) {
               $householdCreate = " INSERT INTO civicrm_contact(contact_type, sort_name, household_name, display_name, external_identifier)
-VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $rows[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}';\n
+VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $rows[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}', modified_date = now(), is_deleted = 1;\n
 SELECT @householdcId := id FROM civicrm_contact WHERE external_identifier = 'H-" . $rows[0] . "';\n
 SELECT @hcid1 := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. ");\n
 SELECT @hcid2 := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. "); 
@@ -1438,9 +1438,9 @@ INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relatio
               $setHRNULL = "SET @houseRelID := '';\n";
               $houseRelID = "SELECT @houseRelID := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND contact_id_b = '{$idb}' AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n
+              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active, start_date) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1, now()) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n
 UPDATE civicrm_relationship 
-SET `is_active` = 0
+SET `is_active` = 0, end_date = now()
 WHERE contact_id_a = @householdId AND relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b != '{$idb}';\n";
             }
             $insert_houshold_city = null;
