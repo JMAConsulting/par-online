@@ -161,7 +161,17 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             $default['payment_instrument'] = $recurValue['payment_instrument_id'];
             $default['payment_status'] = $recurValue[ 'contribution_status_id' ];
             $default['old_status'] = $recurValue[ 'contribution_status_id' ];
-            $default['cc_type'] = $recurValue['installment'][0][$bankDetails['type']];
+            if (!in_array($recurValue['installment'][0][$bankDetails['type']], array(VISA, MASTER_CARD))) {
+              $default['cc_type'] = $recurValue['installment'][0][$bankDetails['type']];
+            }
+            else {
+              if ($recurValue['installment'][0][$bankDetails['type']] == VISA) {
+                $default['cc_type'] = 1;
+              }
+              else {
+                $default['cc_type'] = 2;
+              }
+            }
             break;
         }
         $contributions = $this->getRecurringContribution( $cid, true );
@@ -481,12 +491,12 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           $contactCustom['version'] = 3;
           $contactCustom['contact_id'] = $_GET['cid'];
           $contactCustom['contact_type'] = 'Individual';
-          civicrm_api('contact', 'create', $contactCustom);
+          $contact = civicrm_api('contact', 'create', $contactCustom);
           $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
           $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
           $params[ 'source' ]           = 'Moneris';
           $monerisResult = $moneris->doDirectPayment( $monerisParams );
-          if ( $monerisResult['trxn_result_code'] == '27' ) {
+          if ( $monerisResult['trxn_result_code'] == '27') {
             $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
             $params['contribution_recur_id']  = $recurObj->id;
             $result = civicrm_api( 'contribution','create',$params );
