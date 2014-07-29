@@ -266,7 +266,21 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         }
       }
     }
-    
+    if ($count) {
+      $sql = "UPDATE civicrm_contact cc
+ LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = cc.id
+LEFT JOIN civicrm_relationship cr1 ON cr1.contact_id_b = cc.id
+SET 
+cc.is_deleted = 1,
+cc.modified_date = now(),
+cr.is_active = 0,
+cr1.is_active = 0,
+cr.end_date = now(),
+cr1.end_date = now()
+WHERE cc.contact_type = 'Organization' 
+AND modified_date < CURDATE();\n";
+      fwrite($newRecordsToInsert, $sql);
+    }
     self::logs("no of records = ".$count);
     self::logs("no of invalid records = ".$others);
     
@@ -1284,8 +1298,12 @@ END;\n";
         $display_name2 = null;
         $sort_name2 =  null;
       }
-    
-      if(!empty($ext_id) && (!empty($first_name1) || !empty($last_name1) ) )
+      $orgID = NULL;
+      if ($donor_owner_id) {
+        $orgID = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contact WHERE external_identifier = '{$donor_owner_id}' AND is_deleted = 0");
+      }
+      
+      if(!empty($ext_id) && (!empty($first_name1) || !empty($last_name1)) && $orgID)
         {
           $insert_all_rows ='';
           
@@ -1508,13 +1526,13 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
           $header = null;
         } else {
           $error = array();
-          $error[] = "Invalid value for field(s) : par_donor_id or par_donor_name (contact not found)";
+          $error[] = "Invalid value for field(s) : par_donor_id or par_donor_name (contact not found) or Supporter Relationship for Organization";
           $rows = array_merge($error, $rows);
           fputcsv( $generateCSV, $rows );
         }
       }
     }
-    if (!empty($insert_all_rows)) {
+    if (!empty($count)) {
       $extraClause = '';
       if (!$this->isMonthlySync) {
         $extraClause = ' AND 
