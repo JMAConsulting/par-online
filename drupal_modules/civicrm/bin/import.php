@@ -1192,7 +1192,7 @@ AND modified_date < CURDATE();\n";
       else {
         $paymentInstrument = 6;
       }
-      $updateRecurTable = "\n SET @recurId := '';\n SET @recurStatus := '';\n SELECT @recurId := id, @recurStatus := contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id IN(5, 7); Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5, {$paymentInstrument}) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      $updateRecurTable = "\n SET @recurId := '';\n SET @recurStatus := '';\n SELECT @recurId := id, @recurStatus := contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id IN(5, 7); Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$totalAmount}', 'CAD','month', '1', now(), now(), 5, {$paymentInstrument}) ON DUPLICATE KEY UPDATE amount = '{$totalAmount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       
       $updateRecurTable .= " Insert into civicrm_line_item (entity_table, entity_id, price_field_id, label, qty, unit_price, line_total, price_field_value_id)
 Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name,  CAST(
