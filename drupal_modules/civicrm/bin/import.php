@@ -252,7 +252,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
 
           $insert_all_rows = $insert_org.$setContactNULL.$contact_id.$setParentNULL.$parent_id.$parent_contribution_type.$parent_id.$setGenNULL.$general_id.$general_contribution_type.$general_id.$setSetNULL.$price_setId.$insert_price_set.$price_setId.$setGPFNULL.$general_price_fieldId.$insert_general_price_field.$general_price_fieldId.$setGPFVNULL.$general_pfvId.$insert_general_price_field_value.$setMSNULL.$ms_id.$ms_contribution_type.$ms_id.$setMSPFNULL.$ms_price_fieldId.$insert_ms_price_field.$ms_price_fieldId.$setMSPFVNULL.$ms_pfvId.$insert_ms_price_field_value.$setONULL.$other_id.$other_contribution_type.$other_id.$setOPFINULL.$other_price_fieldId.$insert_other_price_field.$other_price_fieldId.$setOPFVNULL.$other_pfvId.$insert_other_price_field_value.$insert_city.$insert_email.$insert_phone.$insert_fax.$insert_ms_number; 
           fwrite($newRecordsToInsert,$insert_all_rows);
-          $count = $count ++;
+          $count++;
         } else {
         if(is_array($header)) {
           $generateCSV =  fopen($this->par2parOnlinePath.$this->newDirectory.'/'.$this->notImportedOrg, 'w' );
@@ -514,7 +514,7 @@ AND modified_date < CURDATE();\n";
             $insert_all_rows = $insert_admin.$setContNULL.$contact_id.$setAddNULL.$addressId.$insert_city.$setEmailNULL.$emailId.$insert_email.$setPhoneNULL.$phoneId.$insert_phone.$setFaxNULL.$faxId.$insert_fax;
 
             fwrite($newRecordsToInsert,$insert_all_rows); 
-            $count = $count++;
+            $count++;
           }
         } else {
         $others++;
@@ -1516,7 +1516,7 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
           $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog . $updateRecurTable . $insertNsfCustomData;
           
           fwrite($newRecordsToInsert,$insert_all_rows);
-          $count = $count++;
+          $count++;
         }
       else {
         $others++;
