@@ -18,7 +18,7 @@
 .customFields td #email {
     width:200px !important;
 }
-.customFields td #first_name, .customFields td #last_name {
+.customFields td #first_name, .customFields td #last_name, .customFields td #external_identifier {
     width:120px !important;
 }
 
@@ -167,4 +167,12 @@ table#donation_summary td#priceset-details #priceset .crm-section .content{
 .donationSummaryDiv #donation {
 	float: left;
 	width: 33%;
+}
+
+.show_deleted_contacts input{
+  width: 26px !important;
+}
+
+.show_deleted_contacts {
+  vertical-align:middle !important;
 }

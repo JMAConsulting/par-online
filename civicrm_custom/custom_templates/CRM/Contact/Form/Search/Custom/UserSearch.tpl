@@ -61,6 +61,7 @@
                     {/if}
                
             {/foreach}
+	    <td class='show_deleted_contacts'>{$form.show_deleted_contacts.html}{$form.show_deleted_contacts.label}</td>
 	    <td class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</td>	
  	    </tr>
         </table>

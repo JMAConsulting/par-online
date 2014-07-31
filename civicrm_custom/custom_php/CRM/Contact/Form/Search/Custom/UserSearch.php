@@ -89,6 +89,8 @@ implements CRM_Contact_Form_Search_Interface {
                     'external_identifier',
                     ts( 'PAR ID' ),
                     true );
+        $form->add('checkbox', 'show_deleted_contacts', ts('Show only soft deleted contacts'));
+        
         /**
          * You can define a custom title for the search form
          */
@@ -98,7 +100,7 @@ implements CRM_Contact_Form_Search_Interface {
          * if you are using the standard template, this array tells the template what elements
          * are part of the search criteria
          */
-        $form->assign( 'elements', array( 'first_name', 'last_name','external_identifier') );
+        $form->assign( 'elements', array( 'first_name', 'last_name','external_identifier'));
     }
 
     function all($offset = 0, $rowcount = 0, $sort = NULL,
@@ -151,10 +153,14 @@ LEFT JOIN civicrm_log_par_donor clpd ON clpd.primary_contact_id = contact_a.id
         $ufResult = civicrm_api( 'uf_match','get',$ufMatchParams );
         $loggedIn = $ufResult['values'][$ufResult['id']]['contact_id'];
         $params = array( );
+        $isdeleted = 0;
+        if (CRM_Utils_Array::value('show_deleted_contacts', $this->_formValues)) {
+          $isdeleted = 1;          
+        }
         if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $loggedIn, SYS_ADMIN_GROUP_ID ) ) {
-            $where  = " contact_a.contact_type ='Individual' AND contact_a.is_deleted = 0 AND supporter.group_id = 3";// AND admin_cc.id = ".$loggedIn;
+            $where  = " contact_a.contact_type ='Individual' AND contact_a.is_deleted = {$isdeleted} AND supporter.group_id = 3";// AND admin_cc.id = ".$loggedIn;
         } else if (  CRM_Contact_BAO_GroupContact::isContactInGroup( $loggedIn, DENOMINATION_ADMIN_GROUP_ID ) ) {
-            $where  = " contact_a.contact_type ='Individual' AND contact_a.is_deleted = 0 AND supporter.group_id = 3 AND admin_cc.id = ".$loggedIn;
+            $where  = " contact_a.contact_type ='Individual' AND contact_a.is_deleted = {$isdeleted} AND supporter.group_id = 3 AND admin_cc.id = ".$loggedIn;
         }
         $count  = 1;
         $clause = array( );
