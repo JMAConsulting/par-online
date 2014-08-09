@@ -2368,6 +2368,6 @@ if (!$importObj->monthlySync) {
   $importObj->endProcess();
 }
 else {
-  echo "A previous import is still running or failed. Please reset 'Sync currently running' flag to 0 in the Administer > System Settings > Option Groups > Synchronization with PAR Legacy -> Sync currently running\n\n";
+  echo "A previous import is still running or failed. Please reset 'Sync currently running' flag to 0 in the Administer > System Settings > Option Groups > Synchronization with PAR Legacy -> Previous sync has not completed successfully.\n\n";
 }
 ?>
