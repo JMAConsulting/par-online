@@ -552,6 +552,7 @@ function contact_summary_civicrm_pageRun( &$page ) {
       'M&S',
       'Other',
       'Total',
+      'NSF',
     );
     $rows = array();
     foreach ($data[18] as $values) {
