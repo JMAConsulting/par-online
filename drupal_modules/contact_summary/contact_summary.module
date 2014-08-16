@@ -306,7 +306,7 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
                                    
                            
                     <td class='label'><input type='text' class='form-text' id='external_identifier' name='external_identifier'></td>
-                                            
+                     <td class = 'show_deleted_contacts'><input type='checkbox' class='form-checkbox' value='1' name='show_deleted_contacts' id='show_deleted_contacts'><label for='show_deleted_contacts'>Show only soft deleted contacts</label></td>                       
                                    
             	    <td class='crm-submit-buttons'>
    
