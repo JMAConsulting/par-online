@@ -100,7 +100,6 @@ class CRM_Core_Menu
         $xml = simplexml_load_file( $name );
         foreach ( $xml->item as $item ) {
             if ( ! (string ) $item->path ) {
-                CRM_Core_Error::debug( 'i', $item );
                 CRM_Core_Error::fatal( );
             }
             $path = (string ) $item->path;
@@ -606,7 +605,6 @@ UNION (
         $args = array();
 
         $elements = explode( ',', $pathArgs );
-        //CRM_Core_Error::debug( 'e', $elements );
         foreach ( $elements as $keyVal ) {
             list($key, $val) = explode( '=', $keyVal );
             $arr[$key] = $val;

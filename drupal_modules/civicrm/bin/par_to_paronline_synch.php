@@ -118,7 +118,6 @@ class CRM_import {
             $contributionParams['contribution_recur_id']  = current($recurContribution);
             $contributionParams['contribution_status_id'] = 1;
             $getContribution = civicrm_api( 'contribution','get', $contributionParams);
-            // CRM_Core_Error::debug( '$getContribution', $getContribution );
             // if ( !empty( $getContribution['values'] ) ) {
             //   print_r($getRecords->par_donor_update_date);print_r($getContribution['values'][$getContribution['id']]['receive_date']);
             //   if ( $getRecords->par_donor_update_date == $getContribution['values'][$getContribution['id']]['receive_date'] ) {
@@ -128,8 +127,6 @@ class CRM_import {
             // exit;
             require_once 'CRM/Price/BAO/Set.php';
             $priceSetDetails = CRM_Price_BAO_Set::getSetDetail( 2 );
-            CRM_Core_Error::debug( '$priceSetDetails', $priceSetDetails );
-            exit;
             $fields       = $priceSetDetails[ 2 ][ 'fields' ];
             CRM_Core_PseudoConstant::populate( &$priceField, 'CRM_Price_DAO_Field', true, 'id', false, " price_set_id = 2", 'id' );
             $lineItem[0] =  $getRecords->par_donor_cong_amount;
