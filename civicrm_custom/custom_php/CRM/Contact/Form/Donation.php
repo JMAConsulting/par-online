@@ -280,6 +280,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Core/Payment/Moneris.php';
         require_once 'CRM/Core/BAO/CustomValueTable.php';
         require_once 'CRM/Utils/Date.php';
+        require_once 'CRM/Utils/Money.php';
         require_once 'api/api.php';
         require_once 'CRM/Core/DAO/PaymentProcessor.php';
         require_once 'CRM/Core/OptionGroup.php';
@@ -289,12 +290,26 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         if (!$hasPostValue) {
           $postParams = $_POST;
         }
+        
+        if (!CRM_Utils_Array::value('cid', $_GET)) {
+          $_GET['cid'] = $postParams['monthly_contact_id'];
+        }
+        $postParams['cid'] = $_GET['cid'];
+        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment( 10, $mode);
+        $moneris =& CRM_Core_Payment_Moneris::singleton( $mode, $paymentProcessorDetails );
+        foreach($postParams as $postKey => $postValue ){
+            $fieldDetails[ $postKey ] = $postValue;
+        }
+        
         if(!empty($postParams['contribution_id'])){
-          $query ="SELECT civicrm_contribution.id, civicrm_contribution.total_amount, civicrm_contribution.payment_instrument_id, civicrm_contribution.contribution_status_id, civicrm_log_par_donor.par_donor_bank_id, civicrm_log_par_donor.par_donor_branch_id, civicrm_log_par_donor.par_donor_account, civicrm_log_par_donor.other_amount, civicrm_log_par_donor.general_amount, civicrm_log_par_donor.`m&s_amount`AS msamount FROM civicrm_contribution  LEFT JOIN civicrm_log_par_donor ON civicrm_contribution.contact_id = civicrm_log_par_donor.primary_contact_id WHERE civicrm_contribution.id = " . $postParams['contribution_id'];
+          $query ="
+SELECT cc.total_amount, cc.payment_instrument_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, other_amount, general_amount, `m&s_amount`AS msamount, nsf
+FROM civicrm_contribution  cc LEFT JOIN civicrm_log_par_donor ON cc.contact_id = primary_contact_id 
+WHERE cc.id = " . $postParams['contribution_id'];
           $dao = CRM_Core_DAO::executeQuery($query);
           while ($dao->fetch()){
-            $data1 = array(
-              'Status' => 'In Progress',
+            $fieldDetails['oldData']= array(
+              'Status' => $fieldDetails['old_status'],
               'Payment Instrument' => $dao->payment_instrument_id,
               'Bank #' => $dao->par_donor_bank_id,
               'Branch #' => $dao->par_donor_branch_id,
@@ -302,22 +317,15 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
               'General' => $dao->general_amount,
               'M&S' => $dao->msamount,
               'Other' => $dao->other_amount,
-              'Total' => $dao->total_amount,
+              'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
+              'NSF' => $dao->nsf,
             );
           } 
         } 
-        
-        if (!CRM_Utils_Array::value('cid', $_GET)) {
-          $_GET['cid'] = $postParams['monthly_contact_id'];
-        }
-        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment( 10, $mode);
-        $moneris =& CRM_Core_Payment_Moneris::singleton( $mode, $paymentProcessorDetails );
-        foreach($postParams as $postKey => $postValue ){
-            $fieldDetails[ $postKey ] = $postValue;
-        }
                     
         if( $fieldDetails[ 'contribution_id' ] && ( ( $fieldDetails['payment_status'] != 5 && $fieldDetails[ 'old_status' ] == 5 ) || ( $fieldDetails['payment_status'] == 5 && $fieldDetails[ 'old_status' ] != 5 ) ) ) { 
             self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
+            self::save_log_changes($fieldDetails);
             CRM_Core_Session::setStatus( 'Donations changed successfully' );
             return;
         } else if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
@@ -511,35 +519,14 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           }
         }
         
-        if (isset($_GET['cid'])) {
-          $query = "SELECT civicrm_log_par_donor.other_amount, civicrm_log_par_donor.general_amount, civicrm_log_par_donor.`m&s_amount`AS msamount FROM civicrm_log_par_donor WHERE civicrm_log_par_donor.primary_contact_id = ".$_GET['cid'];
-          $dao =  CRM_Core_DAO::executeQuery($query);
-          while ($dao->fetch()){
-            $data2 = array(
-             'Status' => 'Stopped',
-             'Payment Instrument' => $_POST['payment_instrument'],
-             'Bank #' => $_POST['bank'],
-             'Branch #' => $_POST['branch'],
-             'Account #' => $_POST['account'],
-             'General' => $dao->general_amount,
-             'M&S' => $dao->msamount,
-             'Other' => $dao->other_amount,
-             'Total' => $fieldDetails['amount'],
-            );
-          }
-          if ($data1 !== $data2) {
-            $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
-            $data2['Payment Instrument'] =$allInstruments[$_POST['payment_instrument']];
-            $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, '{$postParams['file_id']}', '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($data2) . "');";
-            CRM_Core_DAO::executeQuery($query);
-          }
-        } 
-        
         $logParams = array(
           'primary_contact_id' => $_GET['cid'], 
           'nsf' => $postParams['nsf'],
         );
         make_entry_in_par_log('Update', $logParams);
+        
+        //UCCPAR-491 
+        self::save_log_changes($fieldDetails);
         CRM_Core_Session::setStatus( 'Donations added successfully' );
     }
     
@@ -554,7 +541,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'api/api.php';
         $getContributionParams = array( 'contribution_id' => $contributionId,
                                         'version' => 3 );
-        $contributionDetails = civicrm_api( 'contribution', 'get', $getContributionParams );
+        $contributionDetails = civicrm_api('contribution', 'get', $getContributionParams);
         if( array_key_exists( 'values', $contributionDetails ) ){
             $contributions = null;
             $recurId[ 'contribution' ]     = $contributionDetails[ 'values' ][ $contributionId ]['contribution_recur_id'];
@@ -566,16 +553,13 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             $recurParams   = array( 'id'                     => $recurId[ 'contribution' ],
                                     'modified_date'          => $trxn_date,
                                     'contribution_status_id' => $status );
-            $recurObj      = CRM_Contribute_BAO_ContributionRecur::add( $recurParams, $recurId );
-            CRM_Core_PseudoConstant::populate( &$contributions, 'CRM_Contribute_DAO_Contribution', true, 'max(id)', false, " contribution_recur_id = {$recurId[ 'contribution' ]}", 'id' );
-            $contriParams = array( 'version'                => 3,
-                                   'id'                     => current($contributions),
-                                   'contribution_status_id' => $status,
-                                   'total_amount' => $contributionDetails[ 'values' ][ $contributionId ]['total_amount'],
-                                   'contribution_type_id' => $contributionDetails[ 'values' ][ $contributionId ]['contribution_type_id'],
-                                   'contact_id' => $contributionDetails[ 'values' ][ $contributionId ]['contact_id']
-                                   );
-            $result = civicrm_api( 'contribution', 'create', $contriParams );
+            $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, $recurId);
+            $contriParams = array( 
+              'version' => 3,
+              'id' => $contributionId,
+              'contribution_status_id' => $status,
+            );
+            $result = civicrm_api('contribution', 'update', $contriParams);
         }        
     }
     public function deleteDonor( ) {
@@ -728,4 +712,34 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
       shell_exec('nohup screen -dmS ' . $screenName);
       shell_exec("php {$file}.php 1 &");
     }
+    
+    function save_log_changes($params) {
+      if (!CRM_Utils_Array::value('cid', $params)) {
+        return FALSE;
+      }      
+      $query = "SELECT other_amount, general_amount, `m&s_amount` AS msamount, nsf, par_donor_bank_id, par_donor_branch_id, par_donor_account FROM civicrm_log_par_donor WHERE primary_contact_id = " . $params['cid'];
+      $dao =  CRM_Core_DAO::executeQuery($query);
+      while ($dao->fetch()) {
+        $newData = array(
+          'Status' => $params['payment_status'],
+          'Payment Instrument' => $_POST['payment_instrument'],
+          'Bank #' => $dao->par_donor_bank_id,
+          'Branch #' => $dao->par_donor_branch_id,
+          'Account #' => $dao->par_donor_account,
+          'General' => $dao->general_amount,
+          'M&S' => $dao->msamount,
+          'Other' => $dao->other_amount,
+          'Total' => CRM_Utils_Money::format($params['amount'], NULL),
+          'NSF' => $dao->nsf,
+        );
+      }
+      
+      if (CRM_Utils_Array::value('oldData', $params) !== $newData) {
+        $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
+        $newData['Payment Instrument'] = $allInstruments[$newData['Payment Instrument']];
+        $newData['Status'] = CRM_Contribute_PseudoConstant::contributionStatus($newData['Status']);
+        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, '{$postParams['file_id']}', '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
+        CRM_Core_DAO::executeQuery($query);
+      }
+    }   
 }
