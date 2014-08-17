@@ -563,7 +563,12 @@ function contact_summary_civicrm_pageRun( &$page ) {
       $serializeData = unserialize($values['fields'][51]['field_value']);
       foreach($columns as $column) {
         if (!in_array($column, array('Changed By', 'Change Date'))) {
-          $row[] = CRM_Utils_Array::value($column, $serializeData, '');
+          if ($column == 'NSF') {
+            $row[] = CRM_Utils_Array::value($column, $serializeData, '') ? 'Yes' : 'No';
+          }
+          else {
+            $row[] = CRM_Utils_Array::value($column, $serializeData, '');
+          }
         }
       }
       $row['contact_ref_id'] = $values['fields'][49]['contact_ref_id'];
