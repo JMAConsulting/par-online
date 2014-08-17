@@ -323,13 +323,15 @@ WHERE cc.id = " . $postParams['contribution_id'];
           } 
         } 
                     
-        if( $fieldDetails[ 'contribution_id' ] && ( ( $fieldDetails['payment_status'] != 5 && $fieldDetails[ 'old_status' ] == 5 ) || ( $fieldDetails['payment_status'] == 5 && $fieldDetails[ 'old_status' ] != 5 ) ) ) { 
-            self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
-            self::save_log_changes($fieldDetails);
-            CRM_Core_Session::setStatus( 'Donations changed successfully' );
-            return;
-        } else if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
-            self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] );
+        if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
+          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] );
+        }
+        elseif( $fieldDetails[ 'contribution_id' ] ) {
+          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
+          $fieldDetails['amount'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
+          self::save_log_changes($fieldDetails);
+          CRM_Core_Session::setStatus( 'Donations changed successfully' );
+          return;
         }
         // if( $fieldDetails[ 'contribution_id' ] ){
         //     self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] ); 
