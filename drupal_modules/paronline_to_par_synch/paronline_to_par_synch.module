@@ -50,37 +50,42 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
   }
   
   if ( $objectName == 'Contribution' ) {
-    $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->contact_id;
-    $external_identifier = CRM_Core_DAO::singleValueQuery( $query );
-    if ( !empty( $external_identifier ) ) {
-      $result = explode( '-',$external_identifier );
-      $params['external_identifier'] = $result[1];
-    } 
-        
+    if ($op == 'edit' && $objectRef->contribution_status_id == 7) {
+      return NULL;
+    }
+    $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->contact_id; 
     $params['primary_contact_id'] = $objectRef->contact_id;
-    $query = "SELECT name FROM civicrm_contribution_type WHERE id = ".$objectRef->contribution_type_id;
-
-    $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, $objectRef->amount_level);
-    unset($line_items[0]);
-    end($line_items);        
-    $key = key($line_items);
-    unset($line_items[$key]);
-    
+    if (empty($params['primary_contact_id'])) {
+      $params['primary_contact_id'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $objectRef->id, 'contact_id');
+    }
+      
     $fundType = $amount = null;
     $params['general_amount'] = 
       $params['`m&s_amount`'] = 
       $params['other_amount'] = '0.00';
-    foreach( $line_items as $key => $val ) {
-      $amountLevel = explode(" -", $val);
-      $fundType = $amountLevel[0];
-      $amount   = $amountLevel[1];
+    if ($objectRef->contribution_status_id != 1) {
+      $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, $objectRef->amount_level); 
+      /* if (empty($line_items) && $op == 'edit' && $objectRef->contribution_status_id == 7) { */
+      /*   $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $objectRef->id, 'amount_level')); */
+      /* } */
       
-      if ( $fundType == 'General' ) {
-        $params['general_amount'] = $amount;
-      } else if ( $fundType == 'M&S' ) {
-        $params['`m&s_amount`'] = $amount;
-      } else if ( $fundType == 'Other' ) {
-        $params['other_amount'] = $amount;
+      unset($line_items[0]);
+      end($line_items);        
+      $key = key($line_items);
+      unset($line_items[$key]);
+    
+      foreach( $line_items as $key => $val ) {
+        $amountLevel = explode(" -", $val);
+        $fundType = $amountLevel[0];
+        $amount   = $amountLevel[1];
+      
+        if ( $fundType == 'General' ) {
+          $params['general_amount'] = $amount;
+        } else if ( $fundType == 'M&S' ) {
+          $params['`m&s_amount`'] = $amount;
+        } else if ( $fundType == 'Other' ) {
+          $params['other_amount'] = $amount;
+        }
       }
     }
     make_entry_in_par_log( 'Update', $params );
