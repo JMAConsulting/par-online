@@ -65,9 +65,9 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       $params['other_amount'] = '0.00';
     if ($objectRef->contribution_status_id != 1) {
       $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, $objectRef->amount_level); 
-      /* if (empty($line_items) && $op == 'edit' && $objectRef->contribution_status_id == 7) { */
-      /*   $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $objectRef->id, 'amount_level')); */
-      /* } */
+      if (empty($objectRef->amount_level) && $op == 'edit') {
+        $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $objectRef->id, 'amount_level'));
+      }
       
       unset($line_items[0]);
       end($line_items);        
