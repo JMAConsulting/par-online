@@ -314,9 +314,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
               'Bank #' => $dao->par_donor_bank_id,
               'Branch #' => $dao->par_donor_branch_id,
               'Account #' => $dao->par_donor_account,
-              'General' => $dao->general_amount,
-              'M&S' => $dao->msamount,
-              'Other' => $dao->other_amount,
+              'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+              'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+              'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
               'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
               'NSF' => $dao->nsf,
             );
@@ -328,7 +328,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         }
         elseif( $fieldDetails[ 'contribution_id' ] ) {
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
-          $fieldDetails['amount'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
+          $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
           self::save_log_changes($fieldDetails);
           CRM_Core_Session::setStatus( 'Donations changed successfully' );
           return;
@@ -728,9 +728,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
           'Bank #' => $dao->par_donor_bank_id,
           'Branch #' => $dao->par_donor_branch_id,
           'Account #' => $dao->par_donor_account,
-          'General' => $dao->general_amount,
-          'M&S' => $dao->msamount,
-          'Other' => $dao->other_amount,
+          'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+          'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+          'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
           'Total' => CRM_Utils_Money::format($params['amount'], NULL),
           'NSF' => $dao->nsf,
         );
