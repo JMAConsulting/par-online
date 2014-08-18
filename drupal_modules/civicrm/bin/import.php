@@ -1546,10 +1546,13 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
 LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
 LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contribution_status_id = 5
 LEFT JOIN civicrm_value_is_online_17 cvc ON clpd.primary_contact_id = cvc.entity_id
-SET  `log_action` = 'Delete',
+SET `log_action` = 'Delete',
 `log_time` = now(),
 cc.is_deleted = 1,
-ccr.contribution_status_id = 1
+ccr.contribution_status_id = 1,
+clpd.`m&s_amount` = '0.00',
+clpd.general_amount = '0.00',
+clpd.other_amount = '0.00'
 WHERE `log_time` < CURDATE() {$extraClause};
 \n";
       $deleteQuery .= "\n UPDATE civicrm_relationship cr
