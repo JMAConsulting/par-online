@@ -182,7 +182,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             $lineItem->entity_id    = $contributions[0][ 'installment' ][0]['contribution_id'];
             $lineItem->find();
             while( $lineItem->fetch() ){
-                $default[ 'price_'.$lineItem->price_field_id ] = $lineItem->qty;
+                $default[ 'price_'.$lineItem->price_field_id ] = $lineItem->line_total;
             }
         }
         $daoObject = getLogDetails(array('nsf', 'removed'), array('primary_contact_id = ' . $cid));
@@ -454,7 +454,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
             }
         }
         if ( array_key_exists( 'amount_level', $fieldDetails ) ){
-            $params[ 'amount_level' ] = $fieldDetails[ 'amount_level' ];
+          $params[ 'amount_level' ] = $fieldDetails[ 'amount_level' ];
         }
         
         if ( $fieldDetails[ 'payment_instrument' ] != 1 ) {
@@ -561,7 +561,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
               'id' => $contributionId,
               'contribution_status_id' => $status,
             );
-            $result = civicrm_api('contribution', 'update', $contriParams);
+            $result = civicrm_api('contribution', 'create', $contriParams);
         }        
     }
     public function deleteDonor( ) {
