@@ -1207,12 +1207,6 @@ END as amount,
  cpfv.id FROM civicrm_contribution_type as cct LEFT JOIN civicrm_price_field as cpf ON cpf.contribution_type_id = cct.id LEFT JOIN civicrm_price_field_value as cpfv ON cpf.id = cpfv.price_field_id  LEFT JOIN civicrm_contact cc ON cc.id = cct.contact_id
 WHERE cc.external_identifier = '{$donor_owner_id}' AND cct.parent_id IS NOT NULL
 AND 
-
-CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
-WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
-WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
-END !=0 
-AND 
 CASE WHEN @recurStatus = 7
    THEN 0
  ELSE 1
