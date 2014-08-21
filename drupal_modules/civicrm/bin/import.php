@@ -2271,7 +2271,7 @@ WHERE contribution_status_id = 5 and removed = 1;\n';
     unlink($this->par2parOnlinePath . $this->localAdminFile);
     unlink($this->par2parOnlinePath . $this->organizationFile);
     unlink($this->par2parOnlinePath . $this->transactionFile);
-    $backupsToDelete =  $this->par2parOnlinePath . date('Ym', strtotime(date('Ymd') . ' -4 months')) . '*/';
+    $backupsToDelete =  $this->par2parOnlinePath . date('Ym', strtotime(date('Ymd') . ' -2 months')) . '*/';
     $cmd = "rm -rf {$backupsToDelete}dbBackup";
     shell_exec($cmd);
     $cmd = "rm -rf {$backupsToDelete}*.sql";
