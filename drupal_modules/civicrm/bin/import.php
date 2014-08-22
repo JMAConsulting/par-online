@@ -1239,6 +1239,38 @@ WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
 WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
 END;\n";
 
+      $dao = CRM_Core_DAO::executeQuery("SELECT primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount` msamount, general_amount, other_amount, amount,
+payment_instrument_id, contribution_status_id status
+FROM civicrm_log_par_donor clpd
+INNER JOIN civicrm_contribution_recur cc ON cc.contact_id = clpd.primary_contact_id
+WHERE clpd.primary_contact_id = @contactId AND ( 
+payment_instrument_id <> '{$paymentInstrument}'
+|| par_donor_bank_id <> '{$bank_id}'
+|| par_donor_branch_id <> '{$branch_id}'
+|| par_donor_account <> '{$account_no}'
+|| `m&s_amount` <> '{$donor_ms_amount}'
+|| general_amount <> '{$donor_cong_amount}'
+|| other_amount <> '{$donor_other_amount}'
+|| contribution_status_id NOT IN (5, 7)
+|| nsf <> '{$donor_nsf}'
+)
+ORDER BY cc.id DESC LIMIT 1;");
+      if ($dao->fetch()) {
+        $updateRecurTable .= "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) 
+VALUES (@contactId, NULL, 1, now(), '" . serialize(
+array(
+  'Status' => 'In Progress',
+  'Payment Instrument' => $allInstruments[$dao->payment_instrument_id],
+  'Bank #' => $dao->par_donor_bank_id,
+  'Branch #' => $dao->par_donor_branch_id,
+  'Account #' => $dao->par_donor_account,
+  'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+  'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+  'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
+  'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
+  'NSF' => $dao->nsf,
+)) . "');\n";
+      }
       if ( !empty( $rows[18] ) ) {
         $donor_ms_no = $rows[18];
       } else {
