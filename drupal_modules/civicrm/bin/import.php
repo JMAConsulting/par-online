@@ -8,6 +8,7 @@ Class CRM_par_import extends CRM_par_ImportExport {
   }
   
   function importDonorNsfData() {
+    require_once 'CRM/Utils/Money.php';
     $read  = fopen( $this->par2parOnlinePath.$this->newDirectory.'/'.$this->transactionNSFFile, 'r' );
     $newRecordsToInsert  = fopen($this->par2parOnlinePath.$this->newDirectory.'/importDonorNsfData.sql', 'w' );
     ini_set('memory_limit', '2048M');
@@ -44,6 +45,28 @@ Class CRM_par_import extends CRM_par_ImportExport {
       if ( ( $donor_nsf == 1 && $contribution_id ) ) {  
         $count++;
         $updateContribution = "UPDATE  civicrm_contribution SET contribution_status_id = 4 WHERE id = {$contribution_id};\n";
+        $dao = CRM_Core_DAO::executeQuery("SELECT primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount` msamount, general_amount, other_amount, total_amount,
+payment_instrument_id
+FROM civicrm_log_par_donor  clpd
+INNER JOIN civicrm_contribution cc ON cc.contact_id = clpd.primary_contact_id AND cc.id = {$contribution_id}
+WHERE external_identifier = '{$extrnal_id}';");
+        if ($dao->fetch()) {
+          
+          $updateContribution .= "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) 
+VALUES ({$dao->primary_contact_id}, NULL, 1, now(), '" . serialize(
+array(
+  'Status' => 'Failed',
+  'Payment Instrument' => ($dao->payment_instrument_id == 6) ? 'Direct Debit' : 'Credit Card',
+  'Bank #' => $dao->par_donor_bank_id,
+  'Branch #' => $dao->par_donor_branch_id,
+  'Account #' => $dao->par_donor_account,
+  'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+  'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+  'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
+  'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
+  'NSF' => 1,
+)) . "');\n";
+        }
         $insert_all_records = $updateContribution;
         fwrite($newRecordsToInsert, $insert_all_records);
       } else {
