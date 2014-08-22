@@ -740,7 +740,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
         $newData['Payment Instrument'] = $allInstruments[$newData['Payment Instrument']];
         $newData['Status'] = CRM_Contribute_PseudoConstant::contributionStatus($newData['Status']);
-        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, '{$postParams['file_id']}', '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
+        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, '{$_POST['file_id']}', '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
         CRM_Core_DAO::executeQuery($query);
       }
     }   
