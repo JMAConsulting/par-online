@@ -324,7 +324,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         } 
                     
         if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
-          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] );
+          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], 1, TRUE);
         }
         elseif( $fieldDetails[ 'contribution_id' ] ) {
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
@@ -532,13 +532,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
         CRM_Core_Session::setStatus( 'Donations added successfully' );
     }
     
-    function editContribution( $contributionId, $paymentInstrument, $status = 1 ){
+    function editContribution($contributionId, $paymentInstrument, $status = 1, $noChanges = FALSE){
         if( $paymentInstrument != 1 ) {
-            self::changeContributionStatus( $contributionId, $paymentInstrument, $status );
+            self::changeContributionStatus($contributionId, $paymentInstrument, $status, $noChanges);
         }
     }
 
-    function changeContributionStatus( $contributionId, $paymentInstrument = 1 , $status = 1 ){
+    function changeContributionStatus($contributionId, $paymentInstrument = 1 , $status = 1, $noChanges = FALSE) { 
         require_once 'CRM/Contribute/BAO/ContributionRecur.php';
         require_once 'api/api.php';
         $getContributionParams = array( 'contribution_id' => $contributionId,
@@ -559,7 +559,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
             $contriParams = array( 
               'version' => 3,
               'id' => $contributionId,
-              'contribution_status_id' => $status,
+              'contribution_status_id' => ($noChanges && $contributionDetails['values'][$contributionId]['contribution_status_id'] != 1) ? 3 : $status,
             );
             $result = civicrm_api('contribution', 'create', $contriParams);
         }        
