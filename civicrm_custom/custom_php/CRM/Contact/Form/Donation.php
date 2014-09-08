@@ -331,6 +331,11 @@ WHERE cc.id = " . $postParams['contribution_id'];
         elseif ($fieldDetails['contribution_id']) {
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
           $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
+          $logParams = array(
+            'primary_contact_id' => $_GET['cid'], 
+            'nsf' => $postParams['nsf'],
+          );
+          make_entry_in_par_log('Update', $logParams);
           self::save_log_changes($fieldDetails);
           CRM_Core_Session::setStatus( 'Donations changed successfully' );
           return;
