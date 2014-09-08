@@ -9,6 +9,8 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Price/BAO/Set.php';
         require_once 'CRM/Price/DAO/Field.php';
         require_once 'CRM/Contribute/DAO/ContributionType.php';
+        require_once 'CRM/Contribute/PseudoConstant.php';
+        
         $tabIndex = CRM_Utils_Request::retrieve( 'tabIndex', 'Positive', $this, false );
         $cid      = CRM_Utils_Request::retrieve( 'cid', 'Positive', $this, false );
         $this->assign( 'tabIndex', $tabIndex );
@@ -174,16 +176,16 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             }
             break;
         }
-        $contributions = $this->getRecurringContribution( $cid, true );
-        if( !empty( $contributions ) ){
-            rsort($contributions);
-            $lineItem = new CRM_Price_DAO_LineItem();
-            $lineItem->entity_table = 'civicrm_contribution';
-            $lineItem->entity_id    = $contributions[0][ 'installment' ][0]['contribution_id'];
-            $lineItem->find();
-            while( $lineItem->fetch() ){
-                $default[ 'price_'.$lineItem->price_field_id ] = $lineItem->line_total;
-            }
+        $contributions = $this->getRecurringContribution($cid, TRUE);
+        if (!empty($contributions)) {
+          rsort($contributions);
+          $lineItem = new CRM_Price_DAO_LineItem();
+          $lineItem->entity_table = 'civicrm_contribution_recur';
+          $lineItem->entity_id = $contributions[0]['id'];
+          $lineItem->find();
+          while ($lineItem->fetch()) {
+            $default[ 'price_'.$lineItem->price_field_id ] = $lineItem->line_total;
+          }
         }
         $daoObject = getLogDetails(array('nsf', 'removed'), array('primary_contact_id = ' . $cid));
         $default['nsf'] = $daoObject->nsf;
@@ -195,24 +197,24 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         if ( $cid ) {
             require_once 'api/api.php';
             require_once 'CRM/Contribute/DAO/ContributionRecur.php';
-            $contributionParams = array( 'version'    => 3,
-                                         'contact_id' => $cid,
-                                         );
-            $contributions = getContributions( $contributionParams );
+            $contributionRecur = new CRM_Contribute_DAO_ContributionRecur();
+            $contributionRecur->contact_id = $cid;
+            $contributionRecur->orderBy('id desc');
+            $contributionRecur->find(TRUE);
             $recurContributions = array();
-            foreach( $contributions[ 'values' ] as $recurKey => $recurValue ){
-                if( array_key_exists( 'contribution_recur_id', $recurValue ) ) {
-                    $contributionRecur = new CRM_Contribute_DAO_ContributionRecur( );
-                    $recurArray = array( 'id' => $recurValue[ 'contribution_recur_id' ] );
-                    $contributionRecur->copyValues( $recurArray );
-                    $contributionRecur->find( true );
-                    CRM_Core_DAO::storeValues( $contributionRecur, $values );
-                    
-                    if ( $values['contribution_status_id'] != 3 && ( $values['contribution_status_id'] != 1 || !$noCompleted ) ){
-                        $recurContributions[ $recurValue[ 'contribution_recur_id' ] ] = $values;
-                        $recurContributions[ $recurValue[ 'contribution_recur_id' ] ][ 'installment' ][] = $recurValue;
-                    }
-                }                
+            if ($contributionRecur->N) {
+              if ($contributionRecur->contribution_status_id != 3 && ($contributionRecur->contribution_status_id != 1 || !$noCompleted ) ){
+                $recurContributions[$contributionRecur->id] = array();
+                CRM_Core_DAO::storeValues( $contributionRecur,  $recurContributions[$contributionRecur->id] );
+                $contributionParams = array( 
+                  'version' => 3,
+                  'contact_id' => $cid,
+                  'contribution_recur_id' => $contributionRecur->id,
+                  'sort' => 'contribution_id DESC'
+                );
+                $contributions = getContributions($contributionParams);
+                $recurContributions[$contributionRecur->id]['installment'][] = ($contributions['count']) ? current($contributions['values']) : array();
+              }
             }
             return $recurContributions;
         } else {
@@ -322,11 +324,11 @@ WHERE cc.id = " . $postParams['contribution_id'];
             );
           } 
         } 
-                    
+                
         if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], 1, TRUE);
         }
-        elseif( $fieldDetails[ 'contribution_id' ] ) {
+        elseif ($fieldDetails['contribution_id']) {
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
           $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
           self::save_log_changes($fieldDetails);
