@@ -330,6 +330,10 @@ WHERE cc.id = " . $postParams['contribution_id'];
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], 1, TRUE);
         }
         elseif ($fieldDetails['contribution_id']) {
+          if ($fieldDetails['payment_instrument'] == 1) {
+            CRM_Core_Session::setStatus('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
+            return NULL;
+          }
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
           $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
           $logParams = array(
