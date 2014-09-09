@@ -287,6 +287,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Core/DAO/PaymentProcessor.php';
         require_once 'CRM/Core/OptionGroup.php';
         require_once 'CRM/Core/BAO/PaymentProcessor.php';
+        require_once 'CRM/Contribute/PseudoConstant.php';
         $mode = 'test';
 
         if (!$hasPostValue) {
