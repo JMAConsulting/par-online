@@ -62,57 +62,65 @@ cj('#crm-create-new-link').click(function(event) {
 cj('#crm-create-new-list a').click(function(event){ 
   if (cj(this).hasClass('crm-montly-sync-legacy') || cj(this).hasClass('crm-sync-legacy')) {
    var isMonthlySync = 1;
-   if (cj(this).hasClass('crm-montly-sync-legacy')) {
-     isMonthlySync = 0;
-     cj("#sync-dialog").html('The monthly synchronization between PAR Legacy and PAR Online will take many hours. PAR Online will not be available for use by Local PAR Admins until a subsequent Sync from Legacy occurs. Please confirm that you would like to proceed with the monthly synchronization.');
+   if (cj('.crm-sync-legacy').hasClass('enabled-sync')) {
+      cj("#sync-dialog").html("A previous import is still running or failed. Please reset 'Sync currently running' flag to 0 in the Administer > System Settings > Option Groups > Synchronization with PAR Legacy -> Previous sync has not completed successfully.");
+      cj('#sync-dialog').dialog({
+       width : 500, height : 200,buttons: { 
+         "OK": function() {cj(this).dialog("close"); window.location.href = {/literal}"{crmURL p='civicrm/admin/optionValue' h=0 q='reset=1&action=browse&gid=94'}"{literal};}}});
    }
    else {
-     cj("#sync-dialog").html('The Sync from Legacy will take many hours. During this period Local PAR Admins will not be able to access PAR Online. Please confirm that you would like to proceed with the Sync from Legacy');   	
-   }
-   var url = {/literal}"{crmURL p='civicrm/legacysync' h=0 q='reset=1'}"{literal} + '&isMonthlySync=' + isMonthlySync;
-   var logoutUrl = {/literal}"{crmURL p='civicrm/logout' h=0 q='reset=1'}"{literal};
-   cj('#sync-dialog').dialog({
-     width : 500,
-     height : 200,
-     resizable : false,
-     bgiframe : true,
-     draggable : true,
-     closeOnEscape : false,
-     overlay : { opacity: 0.5, background: "black" },
-     buttons: { 
-       "OK": function() {
-         cj.ajax({
-           type: "POST",
-           url: url,
-           dataType: "json",
-           success: function( response ) {
-           }
-         });
-         cj(this).dialog("close");
-     	 cj("#sync-dialog").html('The Super Admin may log back in but should not change any data until a Synch from Legacy has been completed.');  
-	 cj('#sync-dialog').dialog({
-     	   width : 500,
-     	   height : 200,
-     	   resizable : false,
-    	   bgiframe : true,
-    	   draggable : true,
-   	   closeOnEscape : false,
-     	   overlay : { opacity: 0.5, background: "black" },
-     	   buttons: { 
-       	   "OK": function() {
-             cj(this).dialog("close");
-	     window.location.href = logoutUrl;
-       	   }
-          } 
-         });
-       },
-       "CANCEL": function() { 	 
-	 cj(this).dialog("close"); 
-       }
-      } 
-    });
-    return false;	
- }
+     if (cj(this).hasClass('crm-montly-sync-legacy')) {
+       isMonthlySync = 0;
+       cj("#sync-dialog").html('The monthly synchronization between PAR Legacy and PAR Online will take many hours. PAR Online will not be available for use by Local PAR Admins until a subsequent Sync from Legacy occurs. Please confirm that you would like to proceed with the monthly synchronization.');
+     }
+     else {
+       cj("#sync-dialog").html('The Sync from Legacy will take many hours. During this period Local PAR Admins will not be able to access PAR Online. Please confirm that you would like to proceed with the Sync from Legacy');   	
+     }
+     var url = {/literal}"{crmURL p='civicrm/legacysync' h=0 q='reset=1'}"{literal} + '&isMonthlySync=' + isMonthlySync;
+     var logoutUrl = {/literal}"{crmURL p='civicrm/logout' h=0 q='reset=1'}"{literal};
+     cj('#sync-dialog').dialog({
+       width : 500,
+       height : 200,
+       resizable : false,
+       bgiframe : true,
+       draggable : true,
+       closeOnEscape : false,
+       overlay : { opacity: 0.5, background: "black" },
+       buttons: { 
+         "OK": function() {
+           cj.ajax({
+             type: "POST",
+             url: url,
+             dataType: "json",
+             success: function( response ) {
+             }
+           });
+           cj(this).dialog("close");
+     	   cj("#sync-dialog").html('The Super Admin may log back in but should not change any data until a Synch from Legacy has been completed.');  
+	   cj('#sync-dialog').dialog({
+     	     width : 500,
+     	     height : 200,
+     	     resizable : false,
+    	     bgiframe : true,
+    	     draggable : true,
+   	     closeOnEscape : false,
+     	     overlay : { opacity: 0.5, background: "black" },
+     	     buttons: { 
+       	       "OK": function() {
+               cj(this).dialog("close");
+	       window.location.href = logoutUrl;
+       	       }
+             } 
+           });
+         },
+         "CANCEL": function() { 	 
+	   cj(this).dialog("close"); 
+         }
+       } 
+     });	
+    }
+    return false;
+  }
 });
 
 </script>
