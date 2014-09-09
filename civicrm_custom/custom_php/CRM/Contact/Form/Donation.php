@@ -64,7 +64,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         //Prepare payment details like Bank details or CC details
         //As all the contributions will be made through same payment
         //instrument we just need to check for first entry
-        $contributionDetails = current( $recurResult );
+        $contributionDetails = reset($recurResult);
      
         $priceSet     = $this->getRelatedPriceSetField( $cid );
        
@@ -213,7 +213,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
                   'sort' => 'contribution_id DESC'
                 );
                 $contributions = getContributions($contributionParams);
-                $recurContributions[$contributionRecur->id]['installment'][] = ($contributions['count']) ? current($contributions['values']) : array();
+                $recurContributions[$contributionRecur->id]['installment'][] = ($contributions['count']) ? reset($contributions['values']) : array();
               }
             }
             return $recurContributions;
@@ -434,6 +434,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
                                'create_date'            => $trxn_date,
                                'modified_date'          => $trxn_date,
                                'frequency_unit'         => $fieldDetails['frequency_unit'],
+                               'frequency_interval'     => 1,
                                'payment_instrument_id'  => $fieldDetails['payment_instrument'],
                                'contribution_status_id' => 5,
                                'payment_processor_id'   => 6,
