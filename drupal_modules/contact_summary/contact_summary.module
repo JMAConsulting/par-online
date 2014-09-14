@@ -1630,7 +1630,10 @@ contact_id_a = ' . $objectId);
         }
       }
       else {
-        $extraSet = " `log_action` = 'Delete', ";          
+        $extraSet = " `log_action` = 'Delete', 
+          `m&s_amount` = '0.00',
+          general_amount = '0.00',
+          other_amount = '0.00', ";          
       }
       
       if ($dao->N == 1) {
@@ -1670,7 +1673,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       }
       
       $query = "UPDATE civicrm_log_par_donor clpd
-LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id = 5
+LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id IN (5, 7)
 SET  `log_time` = now(),
 {$extraSet}
 ccr.contribution_status_id = 1
