@@ -126,14 +126,14 @@ implements CRM_Contact_Form_Search_Interface {
     $selectClause = "
 DISTINCT(contact_a.id) as {$pastoralCharge}, 
 admin_cc.id as {$adminContact},
-deno_rel.contact_id_b as {$denomination},
+IFNULL(deno_rel.contact_id_b, non_uc_cc.id) as {$denomination},
 
 conf_rel.contact_id_b as conf_id,contact_a.display_name as pc_name, city.city as city, 
 contact_a.contact_sub_type as contact_sub_type, 
 admin_cc.display_name as admin_name, 
 pres_rel.contact_id_b as pres_id, pres_cc.display_name as pres_name, 
-conf_cc.display_name as conf_name, deno_cc.display_name as deno_name,
-non_uc_rel.contact_id_b as non_uc_id, non_uc_cc.display_name as non_uc_name,
+conf_cc.display_name as conf_name,
+IFNULL(deno_cc.display_name, non_uc_cc.display_name) as deno_name,
 ms_number.ms_number_16 ms_number
 ";
 
@@ -156,7 +156,7 @@ AND pc_cong_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 
 LEFT JOIN civicrm_contact AS pc_cong_cc ON ( pc_cong_cc.id = pc_cong_rel.contact_id_b)
 
-LEFT JOIN civicrm_address  AS city         ON ( city.contact_id = pc_cong_cc.id AND city.is_primary = 1 )
+LEFT JOIN civicrm_address  AS city         ON ( city.contact_id = contact_a.id AND city.is_primary = 1 )
 
 LEFT JOIN civicrm_relationship AS admin_rel ON (  admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." AND CASE 
   WHEN  contact_a.contact_sub_type = 'Pastoral_Charge'
@@ -176,7 +176,7 @@ LEFT JOIN civicrm_contact AS conf_cc ON ( conf_cc.id = conf_rel.contact_id_b AND
 LEFT JOIN civicrm_relationship AS deno_rel ON ( deno_rel.contact_id_a = conf_rel.contact_id_b AND deno_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS deno_cc ON ( deno_cc.id = deno_rel.contact_id_b AND deno_cc.contact_sub_type = 'Denomination')
 
-LEFT JOIN civicrm_relationship AS non_uc_rel ON ( pc_cong_cc.id = non_uc_rel.contact_id_a AND non_uc_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
+LEFT JOIN civicrm_relationship AS non_uc_rel ON ( contact_a.id = non_uc_rel.contact_id_a AND non_uc_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS non_uc_cc ON ( non_uc_cc.id = non_uc_rel.contact_id_b AND non_uc_cc.contact_sub_type = 'Denomination')
 LEFT JOIN civicrm_value_other_details_7 ms_number ON ms_number.entity_id = contact_a.id
 ";       
