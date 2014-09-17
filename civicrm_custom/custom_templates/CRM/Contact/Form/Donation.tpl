@@ -172,7 +172,7 @@ function prepareContributionParams(){
       "async"    : false,
       "dataType": 'json',
       "success": function(html){
-        console.debug(html);
+        console.log(html);
       }
     });
 }
