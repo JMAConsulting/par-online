@@ -544,7 +544,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         self::save_log_changes($fieldDetails);
         CRM_Core_Session::setStatus(ts('Donations added successfully'));
         echo ts('Donations added successfully');
-        exit;
+        CRM_Utils_System::civiExit();
     }
     
     function editContribution($contributionId, $paymentInstrument, $status = 1, $noChanges = FALSE){
