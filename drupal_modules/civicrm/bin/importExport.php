@@ -82,6 +82,15 @@ Class CRM_par_ImportExport {
 
     // and loop through the actual data
     while($row = mysql_fetch_assoc($table)) {
+      if ($row['log_action'] != 'Delete') {
+        $statusID = CRM_Core_DAO::singleValueQuery("SELECT contribution_status_id FROM civicrm_contribution_recur 
+          WHERE contact_id = {$row['primary_contact_id']} ORDER BY id DESC LIMIT 1");
+        
+        if ($statusID 
+          && CRM_Contribute_PseudoConstant::contributionStatus($statusID) == 'Stopped') {
+          continue;
+        }
+      }
       $line = "";
       $comma = "";
       foreach($row as $value) {
