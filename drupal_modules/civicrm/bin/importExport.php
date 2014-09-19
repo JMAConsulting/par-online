@@ -51,6 +51,7 @@ Class CRM_par_ImportExport {
   }
 
   public function exportCSV() {
+    require_once 'CRM/Contribute/PseudoConstant.php';
     mkdir($this->parOnline2ParPath . $this->newDirectory, 01777);
     $con = mysql_connect($this->localhost, $this->userName, $this->pass);
     if (!$con) {
