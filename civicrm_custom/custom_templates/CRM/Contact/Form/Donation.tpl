@@ -104,10 +104,6 @@ cj(document).ready(function(){
 
 cj('#dialog').hide();
 cj( '#_qf_Donation_save' ).click( function(){
-   if (cj('#file_id').val() === '') {
-     alert('File Number is required.');
-     return false;
-   }
    var parentID = {/literal}{if $householdExt neq ''}{$householdExt}{else}0{/if}{literal};
    if (parentID && cj('.payment_instrument').val() == 6) {
    var url = {/literal}"{crmURL p='civicrm/contact/view' h=0 q=reset=1}"{literal};

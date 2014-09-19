@@ -112,7 +112,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add( 'text', "account", null, array( 'maxlength' => 12, 'class' => 'account' ) );
         $this->add( 'text', "cc_number", null, array( 'class' => 'cc_number' ) );
         $this->add( 'text', "contribution_id", null, array( 'class' => 'contribution_id' ) );
-        $this->add('text', 'file_id', ts('File Number'), NULL, TRUE);
+        $this->add('text', 'file_id', ts('File Number'), NULL, TRUE)->freeze();
         $this->add( 'text', "contribution_type", null, array( 'class' => 'contribution_type' ) );
         $this->add( 'hidden', "old_status", null, array( 'class' => 'old_status', 'id' => 'old_status' ) );
         $this->add( 'date', "cc_expire", null, array( 'addEmptyOption'    => 1, 
@@ -750,12 +750,15 @@ WHERE cc.id = " . $postParams['contribution_id'];
           'NSF' => $dao->nsf,
         );
       }
-      
+      $fileNumber = CRM_Core_DAO::singleValueQuery('SELECT coalesce(max(file_number_52), 0)  + 1 FROM civicrm_value_change_log_18');
+      if ($fileNumber < MAX_FILE_NUMBER) {
+        $fileNumber = MAX_FILE_NUMBER; 
+      }
       if (CRM_Utils_Array::value('oldData', $params) !== $newData) {
         $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
         $newData['Payment Instrument'] = $allInstruments[$newData['Payment Instrument']];
         $newData['Status'] = CRM_Contribute_PseudoConstant::contributionStatus($newData['Status']);
-        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, '{$_POST['file_id']}', '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
+        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, {$fileNumber}, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
         CRM_Core_DAO::executeQuery($query);
       }
     }   
