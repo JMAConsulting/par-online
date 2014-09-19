@@ -112,7 +112,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add( 'text', "account", null, array( 'maxlength' => 12, 'class' => 'account' ) );
         $this->add( 'text', "cc_number", null, array( 'class' => 'cc_number' ) );
         $this->add( 'text', "contribution_id", null, array( 'class' => 'contribution_id' ) );
-        $this->add('text', 'file_id', ts('File Number'), NULL, TRUE)->freeze();
+        $this->add('text', 'file_id', ts('Last File Number'), NULL, TRUE)->freeze();
         $this->add( 'text', "contribution_type", null, array( 'class' => 'contribution_type' ) );
         $this->add( 'hidden', "old_status", null, array( 'class' => 'old_status', 'id' => 'old_status' ) );
         $this->add( 'date', "cc_expire", null, array( 'addEmptyOption'    => 1, 
@@ -325,14 +325,17 @@ WHERE cc.id = " . $postParams['contribution_id'];
             );
           } 
         } 
-                
+        
+        $successfullDonation = 'Donations changed successfully.';
+        
         if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], 1, TRUE);
         }
         elseif ($fieldDetails['contribution_id']) {
           if ($fieldDetails['payment_instrument'] == 1) {
-            CRM_Core_Session::setStatus('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
-            return NULL;
+            CRM_Core_Session::setStatus(ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.'));
+            echo ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
+            CRM_Utils_System::civiExit();
           }
           self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
           $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
@@ -341,9 +344,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
             'nsf' => $postParams['nsf'],
           );
           make_entry_in_par_log('Update', $logParams);
-          self::save_log_changes($fieldDetails);
-          CRM_Core_Session::setStatus( 'Donations changed successfully' );
-          return;
+          $fileId = self::save_log_changes($fieldDetails);
+          if ($fileId) {
+            $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
+          }
+          CRM_Core_Session::setStatus(ts($successfullDonation));
+          echo ts($successfullDonation);
+          CRM_Utils_System::civiExit();
         }
         // if( $fieldDetails[ 'contribution_id' ] ){
         //     self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] ); 
@@ -541,9 +548,12 @@ WHERE cc.id = " . $postParams['contribution_id'];
         make_entry_in_par_log('Update', $logParams);
         
         //UCCPAR-491 
-        self::save_log_changes($fieldDetails);
-        CRM_Core_Session::setStatus(ts('Donations added successfully'));
-        echo ts('Donations added successfully');
+        $fileId = self::save_log_changes($fieldDetails);
+        if ($fileId) {
+          $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
+        }
+        CRM_Core_Session::setStatus(ts($successfullDonation));
+        echo ts($successfullDonation);
         CRM_Utils_System::civiExit();
     }
     
@@ -760,6 +770,8 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $newData['Status'] = CRM_Contribute_PseudoConstant::contributionStatus($newData['Status']);
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) values ({$_GET['cid']}, {$fileNumber}, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
         CRM_Core_DAO::executeQuery($query);
+        return $fileNumber;
       }
+      return NULL;
     }   
 }
