@@ -91,12 +91,10 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         //Build bank details block
         $daoObject = getLogDetails(array('nsf', 'removed'), array('primary_contact_id = ' . $cid));
         $extra = array();
-        $isAdmin = TRUE;
         if (!in_array(CRM_Core_Session::singleton()->get('userID'), getSysAdmins())) {
           $extra['disabled'] = 'disabled';
-          $isAdmin = FALSE;
         }
-        if ($daoObject->nsf && !$isAdmin) {
+        if ($daoObject->nsf) {
           unset($contributionStatus[array_search('Stopped', $contributionStatus)]);
         }
         $this->add( 'select', "payment_status", null, $contributionStatus, null, array( 'class' => 'payment_status' ) );
@@ -125,7 +123,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add( 'text', "cavv", null, array( 'class' => 'cavv' ) );
         $this->add( 'hidden', "pricesetid", null, array( 'id' => "pricesetid" ) );
         CRM_Price_BAO_Set::buildPriceSet( $this );
-        if ($daoObject->nsf && !$isAdmin) {
+        if ($daoObject->nsf) {
           foreach ($this->_elementIndex as $key => $keyID) {
             if (substr($key, 0, 6) == 'price_') {
               $this->_elements[$keyID]->_attributes['readonly'] = TRUE;
