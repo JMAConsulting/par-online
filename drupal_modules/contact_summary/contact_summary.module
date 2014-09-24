@@ -1673,6 +1673,34 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       else {
         CRM_Core_DAO::executeQuery('UPDATE civicrm_contact SET external_identifier = NULL WHERE id = ' . $objectId);
       }
+
+      $recurID = CRM_Core_DAO::singleValueQuery('SELECT max(id) recur_id FROM civicrm_contribution_recur WHERE contact_id = ' . $objectId);
+      $logs = CRM_Core_DAO::executeQuery("SELECT par_donor_bank_id, par_donor_branch_id, par_donor_account, general_amount,  
+        `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount FROM
+        civicrm_log_par_donor clpd 
+        LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
+        WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
+      
+      if ($logs->N) {
+        $logs->fetch();
+        require_once('CRM/Contribute/PseudoConstant.php');
+        require_once('CRM/Utils/Money.php');
+        $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
+        $newData = array(
+          'Status' => 'Stopped',
+          'Payment Instrument' => $allInstruments[$logs->payment_instrument_id],
+          'Bank #' => $logs->par_donor_bank_id,
+          'Branch #' => $logs->par_donor_branch_id,
+          'Account #' => $logs->par_donor_account,
+          'General' => CRM_Utils_Money::format($logs->general_amount, NULL),
+          'M&S' => CRM_Utils_Money::format($logs->msamount, NULL),
+          'Other' => CRM_Utils_Money::format($logs->other_amount, NULL),
+          'Total' => CRM_Utils_Money::format($logs->amount, NULL),
+          'NSF' => $logs->nsf,
+        );
+        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
+        CRM_Core_DAO::executeQuery($query);
+      }
       
       $query = "UPDATE civicrm_log_par_donor clpd
 LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id IN (5, 7)
