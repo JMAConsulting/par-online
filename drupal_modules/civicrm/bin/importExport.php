@@ -58,15 +58,27 @@ Class CRM_par_ImportExport {
       die('Could not connectss: ' . mysql_error());
     }
     mysql_select_db("$this->dbName", $con);
-    $getTable = "SELECT  clpd.*, IFNULL(activated__48,0) is_online_par, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
+    $getTable = "SELECT  clpd.*, IFNULL(activated__48,0) is_online_par, NULL par_donor_owner_id
+      FROM civicrm_log_par_donor clpd
+      LEFT JOIN civicrm_value_is_online_17 cv ON cv.entity_id = clpd.primary_contact_id";
+    $table  = mysql_query ($getTable) or die ("Sql error : " . mysql_error());
+    $exportCSV  = fopen($this->parOnline2ParPath . $this->newDirectory . '/' . $this->synchFile, 'w');
+    $parOwnerId = array();
+    $dao = CRM_Core_DAO::executeQuery("SELECT cr.is_active, clpd.primary_contact_id, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
       FROM civicrm_log_par_donor clpd
       LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = clpd.primary_contact_id
       LEFT JOIN civicrm_contact ON civicrm_contact.id = cr.contact_id_b
-      LEFT JOIN civicrm_value_is_online_17 cv ON cv.entity_id = clpd.primary_contact_id
-      WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_ID;
-    $table  = mysql_query ($getTable) or die ("Sql error : " . mysql_error());
-    $exportCSV  = fopen($this->parOnline2ParPath . $this->newDirectory . '/' . $this->synchFile, 'w');
-
+      WHERE cr.relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID);
+    while ($dao->fetch()) {
+      if (array_key_exists($dao->primary_contact_id, $parOwnerId)
+        && $parOwnerId[$dao->primary_contact_id]['is_active']) {
+        continue;
+      }
+      $parOwnerId[$dao->primary_contact_id] = array(
+        'par_donor_owner_id' => $dao->par_donor_owner_id,
+        'is_active' => $dao->is_active,
+      );
+    }
     // fetch a row and write the column names out to the file
     $row = mysql_fetch_assoc($table);
     $line = "";
@@ -80,9 +92,11 @@ Class CRM_par_ImportExport {
 
     // remove the result pointer back to the start
     mysql_data_seek($table, 0);
-
     // and loop through the actual data
     while($row = mysql_fetch_assoc($table)) {
+      if (array_key_exists($row['primary_contact_id'], $parOwnerId)) {
+        $row['par_donor_owner_id'] = $parOwnerId[$row['primary_contact_id']]['par_donor_owner_id'];
+      }
       if ($row['log_action'] != 'Delete') {
         $statusID = CRM_Core_DAO::singleValueQuery("SELECT contribution_status_id FROM civicrm_contribution_recur 
           WHERE contact_id = {$row['primary_contact_id']} ORDER BY id DESC LIMIT 1");
