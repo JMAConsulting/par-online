@@ -1692,10 +1692,10 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
           'Bank #' => $logs->par_donor_bank_id,
           'Branch #' => $logs->par_donor_branch_id,
           'Account #' => $logs->par_donor_account,
-          'General' => CRM_Utils_Money::format($logs->general_amount, NULL),
-          'M&S' => CRM_Utils_Money::format($logs->msamount, NULL),
-          'Other' => CRM_Utils_Money::format($logs->other_amount, NULL),
-          'Total' => CRM_Utils_Money::format($logs->amount, NULL),
+          'General' => CRM_Utils_Money::format(0, NULL),
+          'M&S' => CRM_Utils_Money::format(0, NULL),
+          'Other' => CRM_Utils_Money::format(0, NULL),
+          'Total' => CRM_Utils_Money::format(0, NULL),
           'NSF' => $logs->nsf,
         );
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
