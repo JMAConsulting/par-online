@@ -651,7 +651,9 @@ AND modified_date < CURDATE();\n";
 
   function importDonor() {
     require_once('CRM/Contribute/PseudoConstant.php');
+    require_once('CRM/Utils/Money.php');
     $allInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
+    $contributionStatus = CRM_Contribute_PseudoConstant::contributionStatus();
     $read  = fopen( $this->par2parOnlinePath.$this->newDirectory.'/'.$this->donorFile, 'r' );
     $newRecordsToInsert  = fopen($this->par2parOnlinePath.$this->newDirectory.'/importDonor.sql', 'w' );
     ini_set('memory_limit', '2048M');
@@ -1244,12 +1246,12 @@ ON DUPLICATE KEY UPDATE line_total = CASE WHEN cct.name LIKE 'General' THEN '{$d
 WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
 WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
 END;\n";
-
-      $dao = CRM_Core_DAO::executeQuery("SELECT primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount` msamount, general_amount, other_amount, amount,
-payment_instrument_id, contribution_status_id status
-FROM civicrm_log_par_donor clpd
+      
+      $recurID = CRM_Core_DAO::singleValueQuery("SELECT max(cr.id) recur_id FROM civicrm_contribution_recur cr LEFT JOIN civicrm_contact cc ON cc.id = cr.contact_id WHERE external_identifier = '$ext_id'");
+      $extraWhere = !empty($recurID) ? " AND cc.id = {$recurID} " : '';
+      $dao = CRM_Core_DAO::executeQuery("SELECT clpd.log_id FROM civicrm_log_par_donor clpd
 INNER JOIN civicrm_contribution_recur cc ON cc.contact_id = clpd.primary_contact_id
-WHERE clpd.primary_contact_id = @contactId AND ( 
+WHERE clpd.external_identifier = '{$extrnal_id}' AND ( 
 payment_instrument_id <> '{$paymentInstrument}'
 || par_donor_bank_id <> '{$bank_id}'
 || par_donor_branch_id <> '{$branch_id}'
@@ -1257,24 +1259,24 @@ payment_instrument_id <> '{$paymentInstrument}'
 || `m&s_amount` <> '{$donor_ms_amount}'
 || general_amount <> '{$donor_cong_amount}'
 || other_amount <> '{$donor_other_amount}'
-|| contribution_status_id NOT IN (5, 7)
+|| contribution_status_id NOT IN ($onHoldStatus)
 || nsf <> '{$donor_nsf}'
-)
+) {$extraWhere}
 ORDER BY cc.id DESC LIMIT 1;");
-      if ($dao->fetch()) {
+      if ($dao->fetch() || !$recurID) {
         $updateRecurTable .= "INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) 
 VALUES (@contactId, NULL, 1, now(), '" . serialize(
 array(
-  'Status' => 'In Progress',
-  'Payment Instrument' => $allInstruments[$dao->payment_instrument_id],
-  'Bank #' => $dao->par_donor_bank_id,
-  'Branch #' => $dao->par_donor_branch_id,
-  'Account #' => $dao->par_donor_account,
-  'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
-  'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
-  'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
-  'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
-  'NSF' => $dao->nsf,
+  'Status' => $contributionStatus[$onHoldStatus],
+  'Payment Instrument' => $allInstruments[$paymentInstrument],
+  'Bank #' => $bank_id,
+  'Branch #' => $branch_id,
+  'Account #' => $account_no,
+  'General' => CRM_Utils_Money::format($donor_cong_amount, NULL),
+  'M&S' => CRM_Utils_Money::format($donor_ms_amount, NULL),
+  'Other' => CRM_Utils_Money::format($donor_other_amount, NULL),
+  'Total' => CRM_Utils_Money::format($totalAmount, NULL),
+  'NSF' => $donor_nsf,
 )) . "');\n";
       }
       if ( !empty( $rows[18] ) ) {
@@ -1482,23 +1484,8 @@ WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATIO
             // ADD change logs
             
             $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$extrnal_id}';\n";
-            $data = array(
-              'Status' => 'In Progress',
-              'Payment Instrument' => $allInstruments[$paymentInstrument],
-              'Bank #' => $bank_id,
-              'Branch #' => $branch_id,
-              'Account #' => $account_no,
-              'General' => $donor_cong_amount,
-              'M&S' => $donor_ms_amount,
-              'Other' => $donor_other_amount,
-              'Total' => $donor_cong_amount + $donor_ms_amount + $donor_other_amount,
-            );
             
-            $insertParLog = "INSERT INTO civicrm_value_change_log_18 (entity_id, modified_by_49, modified_date_50, change_log_data_51)
-SELECT @contactId, 1, now(), '" . serialize($data) . "' FROM civicrm_log_par_donor
-WHERE external_identifier = {$extrnal_id} AND removed = {$donor_removed};";
-            
-            $insertParLog .= "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount`, general_amount, other_amount, nsf, removed ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, '{$account_no}', {$donor_ms_amount}, {$donor_cong_amount}, {$donor_other_amount}, {$donor_nsf}, $donor_removed ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = '{$account_no}', `m&s_amount` = {$donor_ms_amount}, general_amount = {$donor_cong_amount}, other_amount = {$donor_other_amount}, nsf = {$donor_nsf}, removed = {$donor_removed};\n";
+            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount`, general_amount, other_amount, nsf, removed ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, '{$account_no}', {$donor_ms_amount}, {$donor_cong_amount}, {$donor_other_amount}, {$donor_nsf}, $donor_removed ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = '{$account_no}', `m&s_amount` = {$donor_ms_amount}, general_amount = {$donor_cong_amount}, other_amount = {$donor_other_amount}, nsf = {$donor_nsf}, removed = {$donor_removed};\n";
             
           }
           
