@@ -1574,6 +1574,8 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
         }
       }
     }
+    
+    $table = 'temp_' . rand(10000, 100000);    
     if (!empty($count)) {
       $extraClause = '';
       if (!$this->isMonthlySync) {
@@ -1584,7 +1586,31 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
             ELSE 1   
           END ';
       }
-      $deleteQuery = "\n UPDATE civicrm_log_par_donor clpd
+      $columns = array(
+        'primary_contact_id',
+        'par_donor_bank_id',
+        'par_donor_branch_id',
+        'par_donor_account',
+        'msamount',
+        'general_amount',
+        'other_amount',
+        'amount',
+        'nsf',
+        'payment_instrument_id',
+      );
+      $deleteQuery = 
+        "CREATE TABLE IF NOT EXISTS $table (" . implode(' text, ', $columns) . " text) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;\n" .
+        " INSERT INTO $table (" . implode(' , ', $columns) . ")
+
+        SELECT clpd.primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount` msamount, general_amount, other_amount, amount, nsf,
+        payment_instrument_id FROM civicrm_log_par_donor clpd
+        LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
+        LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id 
+        LEFT JOIN civicrm_value_is_online_17 cvc ON clpd.primary_contact_id = cvc.entity_id
+        WHERE `log_time` < CURDATE() AND log_action <> 'Delete' AND ccr.contribution_status_id IN (5, 7) {$extraClause};
+        \n";
+      
+      $deleteQuery .= "\n UPDATE civicrm_log_par_donor clpd
 LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
 LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contribution_status_id IN (5, 7)
 LEFT JOIN civicrm_value_is_online_17 cvc ON clpd.primary_contact_id = cvc.entity_id
@@ -1621,6 +1647,27 @@ SET
 
     if ($return) {
       throw new Exception('Import Donar Failed in function : importDonor()');
+    }
+    
+    if (!empty($count)) { 
+      $dao = CRM_Core_DAO::executeQuery("SELECT * FROM $table");
+      while ($dao->fetch()) {
+        CRM_Core_DAO::executeQuery("INSERT INTO civicrm_value_change_log_18 (entity_id, file_number_52, modified_by_49, modified_date_50, change_log_data_51) 
+VALUES ({$dao->primary_contact_id}, NULL, 1, now(), '" . serialize(
+        array(
+          'Status' => 'Stopped',
+          'Payment Instrument' => $allInstruments[$dao->payment_instrument_id],
+          'Bank #' => $dao->par_donor_bank_id,
+          'Branch #' => $dao->par_donor_branch_id,
+          'Account #' => $dao->par_donor_account,
+          'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+          'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+          'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
+          'Total' => CRM_Utils_Money::format($dao->amount, NULL),
+          'NSF' => $dao->nsf,
+        )) . "');");
+      }
+      CRM_Core_DAO::executeQuery("DROP TABLE IF EXISTS $table;");
     }
   }
 
