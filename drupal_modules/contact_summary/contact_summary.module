@@ -1593,6 +1593,7 @@ contact_id_a = ' . $objectId);
           'version' => 3,
           'id' => $relId,
           'is_active' => 0,
+          'end_date' => date('Ymd'),
         );
         civicrm_api('relationship', 'Create', $relParams);
       }
@@ -1643,6 +1644,7 @@ contact_id_a = ' . $objectId);
         CRM_Core_DAO::executeQuery("UPDATE `civicrm_contact` cc
 INNER JOIN civicrm_relationship cr ON cr.contact_id_b = cc.id
 SET is_active = 0,
+end_date = now(),
 is_deleted = 1
 WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       }
@@ -1655,6 +1657,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
             `civicrm_contact` cc
             LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = cc.id AND relationship_type_id = ' . MEMBER_OF_HOUSEHOLD . "
             SET is_active = 0,
+            end_date = now(),
             external_identifier = 'D-{$externalId[1]}'
             WHERE is_deleted = 0 AND cc.id = {$dao->id}");
           
@@ -1662,6 +1665,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
             'version' => 3,
             'id' => $relId,
             'is_active' => 1,
+            'start_date' => date('Ymd'),
             'contact_id_a' => $dao->id,
             'contact_id_b' => CRM_Core_DAO::getFieldValue('CRM_Contact_BAO_Contact', 'H-'. $externalId[1], 'id', 'external_identifier'),
             'relationship_type_id' => HEAD_OF_HOUSEHOLD
@@ -1675,13 +1679,15 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       }
 
       $recurID = CRM_Core_DAO::singleValueQuery('SELECT max(id) recur_id FROM civicrm_contribution_recur WHERE contact_id = ' . $objectId);
-      $logs = CRM_Core_DAO::executeQuery("SELECT par_donor_bank_id, par_donor_branch_id, par_donor_account, general_amount,  
-        `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount FROM
-        civicrm_log_par_donor clpd 
-        LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
-        WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
-      
-      if ($logs->N) {
+      $logs = NULL;
+      if ($recurID) {
+        $logs = CRM_Core_DAO::executeQuery("SELECT par_donor_bank_id, par_donor_branch_id, par_donor_account, general_amount,  
+          `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount, cr.frequency_unit, cr.payment_processor_id FROM
+          civicrm_log_par_donor clpd 
+          LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
+          WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
+      }
+      if ($logs && $logs->N) {
         $logs->fetch();
         require_once('CRM/Contribute/PseudoConstant.php');
         require_once('CRM/Utils/Money.php');
@@ -1698,7 +1704,49 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
           'Total' => CRM_Utils_Money::format(0, NULL),
           'NSF' => $logs->nsf,
         );
-        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "');";
+        
+        // Add code to transfer bank details
+
+        //primary is deleted, transfer recur to secondary
+        $extraInsert = '';
+        if ($dao->N) {
+          // TODO:: adding bank details to secondary same as primary
+          $extraInsert = ", ({$dao->id}, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize(
+            array(
+              'Status' => CRM_Contribute_PseudoConstant::contributionStatus($logs->contribution_status_id),
+              'Payment Instrument' => $allInstruments[$logs->payment_instrument_id],
+              'Bank #' => $logs->par_donor_bank_id,
+              'Branch #' => $logs->par_donor_branch_id,
+              'Account #' => $logs->par_donor_account,
+              'General' => CRM_Utils_Money::format($logs->general_amount, NULL),
+              'M&S' => CRM_Utils_Money::format($logs->msamount, NULL),
+              'Other' => CRM_Utils_Money::format($logs->other_amount, NULL),
+              'Total' => CRM_Utils_Money::format($logs->amount, NULL),
+              'NSF' => $logs->nsf,                                                    
+            )                                                                                                                      
+          ) . "')";
+          
+          // create a new recuring payment for secondary member
+          $recurParams = array( 
+            'contact_id'             => $dao->id,
+            'amount'                 => $logs->amount,
+            'start_date'             => date('Ymd'),
+            'create_date'            => date('Ymd'),
+            'frequency_unit'         => $logs->frequency_unit,
+            'frequency_interval'     => 1,
+            'payment_instrument_id'  => $logs->payment_instrument_id,
+            'contribution_status_id' => $logs->contribution_status_id,
+            'payment_processor_id'   => $logs->payment_processor_id,
+            'installments'           => 90010
+          );
+          require_once 'CRM/Contribute/BAO/ContributionRecur.php';
+          require_once 'CRM/Price/BAO/LineItem.php';
+          require_once 'CRM/Contact/Form/Donation.php';
+          $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, CRM_Core_DAO::$_nullArray);
+          $lineItems = CRM_Price_BAO_LineItem::getLineItems($recurID, 'contribution_recur');
+          CRM_Contact_Form_Donation::processRecurPriceSet($recurObj->id, array(1 => $lineItems));
+        }
+        $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "') $extraInsert;";
         CRM_Core_DAO::executeQuery($query);
       }
       
@@ -1707,7 +1755,7 @@ LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contac
 SET  `log_time` = now(),
 {$extraSet}
 ccr.contribution_status_id = 1
-WHERE  clpd.primary_contact_id = {$objectId}";
+WHERE  clpd.primary_contact_id = {$objectId}";      
       CRM_Core_DAO::executeQuery($query);
     }
 }
