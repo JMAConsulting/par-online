@@ -142,19 +142,21 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
                                           'operatorType'  => CRM_Report_Form::OP_DATE,
                                           ),
                                  'contribution_type_id'   =>
-                                    array( 'title'        => ts( 'Contribution Type' ), 
+                                    array( 'title'        => ts('Congregation/Pastoral Charge'), 
                                            'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-                                           'options'      => CRM_Contribute_PseudoConstant::contributionType( )
+                                           'options'      => self::getParentContribuitonTypes(),
                                          ),
                                  'payment_instrument_id'   =>
                                     array( 'title'        => ts( 'Payment Type' ), 
                                            'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-                                           'options'      => CRM_Contribute_PseudoConstant::paymentInstrument( )
+                                           'options'      => CRM_Contribute_PseudoConstant::paymentInstrument( ),
+                                           'type'         => CRM_Utils_Type::T_INT,
                                          ),
                                 'contribution_status_id' => 
                                     array( 'title'        => ts( 'Contribution Status' ), 
                                         'operatorType' => CRM_Report_Form::OP_MULTISELECT,
                                         'options'      => CRM_Contribute_PseudoConstant::contributionStatus( ),
+                                        'type'         => CRM_Utils_Type::T_INT,
                                         'default'      => array( 1 ),
                                         ),
                                  'total_amount'           => 
@@ -473,7 +475,7 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
         parent::where();
         $params = $this->getVar( '_params' );
         $this->_where .= " AND relContact.contact_id = {$_SESSION['CiviCRM']['userID']} ";
-        if( $params['receive_date_relative'] == 'ucc.month' ){
+        if( CRM_Utils_Array::value('receive_date_relative', $params) == 'ucc.month' ){
             $todaysDay = date('d',time());
             if( $todaysDay >= 20 ){
                 $startDate = date( 'Y-m-d', mktime( 0, 0, 0, date( 'm', time() ), 20, date( 'Y', time() ) ) );
@@ -488,5 +490,14 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
         if ($this->_congregationId) {
           $this->_where .= ' AND civicrm_relationship_a.relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID . ' AND civicrm_relationship_a.contact_id_b = ' . $this->_congregationId;
         }
+    }
+    
+    function getParentContribuitonTypes() {
+      $contributionTypeDAO = CRM_Core_DAO::executeQuery('SELECT id, name FROM civicrm_contribution_type WHERE parent_id IS NULL AND contact_id IS NOT NULL ORDER BY name');
+      $contributionType = array();
+      while ($contributionTypeDAO->fetch()) {
+        $contributionType[$contributionTypeDAO->id] = $contributionTypeDAO->name;
+      }
+      return $contributionType;
     }
 }
