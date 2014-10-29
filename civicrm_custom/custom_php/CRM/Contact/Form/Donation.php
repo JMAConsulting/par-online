@@ -449,6 +449,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
                                'contribution_status_id' => 5,
                                'payment_processor_id'   => 6,
                                'invoice_id'             => $invoice,
+                               'contribution_type_id'   => $fieldDetails['contribution_type'],
                                'trxn_id'                => $invoice,
                                'installments'           => 90010
                                );

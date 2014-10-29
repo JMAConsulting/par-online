@@ -102,7 +102,7 @@ function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
         $count = CRM_Core_Session::singleton()->get('numberOfContacts');
         if ($count) {
           for ($i =0; $i < $count; $i++) {
-            $classNames['houseHold_' . $i] = array( 'className' => 'CRM_Contact_Form_Task_Household_BankingInfo'); 
+            $classNames['houseHold_' . $i] = array( 'className' => 'CRM_Contact_Form_Task_Household_BankingInfo');
           }
         }
         
@@ -1686,7 +1686,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       $logs = NULL;
       if ($recurID) {
         $logs = CRM_Core_DAO::executeQuery("SELECT par_donor_bank_id, par_donor_branch_id, par_donor_account, general_amount,  
-          `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount, cr.frequency_unit, cr.payment_processor_id FROM
+          `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount, cr.frequency_unit, cr.payment_processor_id, cr.contribution_type_id FROM
           civicrm_log_par_donor clpd 
           LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
           WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
@@ -1740,6 +1740,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
             'frequency_interval'     => 1,
             'payment_instrument_id'  => $logs->payment_instrument_id,
             'contribution_status_id' => $logs->contribution_status_id,
+            'contribution_type_id'   => $logs->contribution_type_id,
             'payment_processor_id'   => $logs->payment_processor_id,
             'installments'           => 90010
           );
