@@ -2384,63 +2384,63 @@ $importObj->isMonthlySync = CRM_Utils_Array::value(1, $argv);
 try {
   $flag = $importObj->setupImport();
   if ($flag) {
-    /* $importObj->createBackup('preImport'); */
-    /* $importObj->logs("Update previous months NSF contributions - Start @ " . date('Y-m-d H:i:s')); */
-    /* $importObj->importDonorNsfData(); */
-    /* //$importObj->createBackup('nsf'); */
-    /* $importObj->logs("Update previous months NSF contributions - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->createBackup('preImport');
+    $importObj->logs("Update previous months NSF contributions - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importDonorNsfData();
+    //$importObj->createBackup('nsf');
+    $importObj->logs("Update previous months NSF contributions - End @ " . date('Y-m-d H:i:s'));
   
-    /* $importObj->logs("Organization Import - Start @ " . date('Y-m-d H:i:s')); */
-    /* $importObj->importOrganisation(); */
-    /* //$importObj->createBackup('Org'); */
-    /* $importObj->logs("Organization Import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Organization Import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importOrganisation();
+    //$importObj->createBackup('Org');
+    $importObj->logs("Organization Import - End @ " . date('Y-m-d H:i:s'));
   
-    /* $importObj->logs("Organization relationship Import - Start @ " . date('Y-m-d H:i:s')); */
-    /* $importObj->importOrgRelationship(); */
-    /* //$importObj->createBackup('OrgRel'); */
-    /* $importObj->logs("Organization relationship Import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Organization relationship Import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importOrgRelationship();
+    //$importObj->createBackup('OrgRel');
+    $importObj->logs("Organization relationship Import - End @ " . date('Y-m-d H:i:s'));
   
-    /* $importObj->logs("Admin Import - Start @ " . date('Y-m-d H:i:s')); */
-    /* $importObj->importAdmin(); */
-    /* //$importObj->createBackup('Admin'); */
-    /* $importObj->logs("Admin Import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Admin Import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importAdmin();
+    //$importObj->createBackup('Admin');
+    $importObj->logs("Admin Import - End @ " . date('Y-m-d H:i:s'));
 
-    /* $importObj->logs("Admin relationship Import - Start @ " . date('Y-m-d H:i:s')); */
-    /* $importObj->importAdminRelationship(); */
-    /* //$importObj->createBackup('AdminRel'); */
-    /* $importObj->logs("Admin relationship Import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Admin relationship Import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importAdminRelationship();
+    //$importObj->createBackup('AdminRel');
+    $importObj->logs("Admin relationship Import - End @ " . date('Y-m-d H:i:s'));
   
     $importObj->logs("Donor Import - Start @ " . date('Y-m-d H:i:s'));
     $importObj->importDonor();
     //$importObj->createBackup('Donor');
     $importObj->logs("Donor Import - End @ " . date('Y-m-d H:i:s'));
   
-  /*   $importObj->logs("Contribution type account details import - Start @ " . date('Y-m-d H:i:s')); */
-  /*   $importObj->importCharge(); */
-  /*   //$importObj->createBackup('Charge'); */
-  /*   $importObj->logs("Contribution type account details import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Contribution type account details import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importCharge();
+    //$importObj->createBackup('Charge');
+    $importObj->logs("Contribution type account details import - End @ " . date('Y-m-d H:i:s'));
 
-  /*   $importObj->logs("Contribution Import - Start @ " . date('Y-m-d H:i:s')); */
-  /*   $importObj->importContribution(); */
-  /*   //$importObj->createBackup('Contribution'); */
-  /*   $importObj->logs("Contribution Import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Contribution Import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->importContribution();
+    //$importObj->createBackup('Contribution');
+    $importObj->logs("Contribution Import - End @ " . date('Y-m-d H:i:s'));
 
-  /*   $importObj->logs("Contribution custom data import - Start @ " . date('Y-m-d H:i:s')); */
-  /*   $importObj->addContributionCustomData(); */
-  /*   //$importObj->createBackup('contriCustomData'); */
-  /*   $importObj->logs("Contribution custom data import - End. @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Contribution custom data import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->addContributionCustomData();
+    //$importObj->createBackup('contriCustomData');
+    $importObj->logs("Contribution custom data import - End. @ " . date('Y-m-d H:i:s'));
 
-  /*   $importObj->logs("Related Contacts Cache table import - Start @ " . date('Y-m-d H:i:s')); */
-  /*   $importObj->relatedContacts(); */
-  /*   //$importObj->createBackup('relatedContacts'); */
-  /*   $importObj->logs("Related Contacts Cache table import - End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Related Contacts Cache table import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->relatedContacts();
+    //$importObj->createBackup('relatedContacts');
+    $importObj->logs("Related Contacts Cache table import - End @ " . date('Y-m-d H:i:s'));
   
-  /*   $importObj->logs("Drupal user import - Start @ " . date('Y-m-d H:i:s')); */
-  /*   $importObj->drupalUser(); */
-  /*   $importObj->logs("Drupal user import End @ " . date('Y-m-d H:i:s')); */
+    $importObj->logs("Drupal user import - Start @ " . date('Y-m-d H:i:s'));
+    $importObj->drupalUser();
+    $importObj->logs("Drupal user import End @ " . date('Y-m-d H:i:s'));
 
-  /*   $importObj->deleteFiles(); */
-  /*   $importObj->createBackup('postImport'); */
+    $importObj->deleteFiles();
+    $importObj->createBackup('postImport');
   }
   //FIXME: add details
   $details = '';
