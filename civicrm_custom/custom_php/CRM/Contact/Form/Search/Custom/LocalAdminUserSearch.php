@@ -45,6 +45,7 @@ implements CRM_Contact_Form_Search_Interface {
 
 
         $this->_columns = array( ts('Name') => 'donor_name'  , 
+                                 ts('Donor ID') => 'external_identifier'  ,
                                  ts('Congregation Name') => 'cong_name'  ,
                                  ts('NSF') => 'nsf',
                                  ts('Status') => 'contribution_status_id',
@@ -96,7 +97,7 @@ implements CRM_Contact_Form_Search_Interface {
     function all( $offset = 0, $rowcount = 0, $sort = null,
                   $includeContactIDs = false ) {
         $selectClause = "
-contact_a.id as contact_id, contact_a.display_name as donor_name, contact_b.display_name as cong_name,
+contact_a.id as contact_id, contact_a.external_identifier, contact_a.display_name as donor_name, contact_b.display_name as cong_name,
 admin_cc.id as admin_id, admin_cc.display_name as admin_name,
 email.email as donor_email, '' as funds, '' as mtd_total, '' as total, '' as upcoming, envelope.envelope_number_40 as envelope_number, nsf, NULL as contribution_status_id ";
         return $this->sql( $selectClause,
