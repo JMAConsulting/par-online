@@ -158,14 +158,15 @@ LEFT JOIN civicrm_contact AS pc_cong_cc ON ( pc_cong_cc.id = pc_cong_rel.contact
 
 LEFT JOIN civicrm_address  AS city         ON ( city.contact_id = contact_a.id AND city.is_primary = 1 )
 
-LEFT JOIN civicrm_relationship AS admin_rel ON (  admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." AND CASE 
+LEFT JOIN 
+( SELECT cc.id, display_name, contact_id_b, first_name, last_name FROM civicrm_contact cc INNER JOIN civicrm_relationship cr ON cc.id = cr.contact_id_a AND cr.is_active = 1 AND cr.relationship_type_id = 11 )
+ AS admin_cc ON ( CASE 
   WHEN  contact_a.contact_sub_type = 'Pastoral_Charge'
     THEN pc_cong_rel.contact_id_a 
   ELSE
     contact_a.id
-END = admin_rel.contact_id_b )
+END = admin_cc.contact_id_b )
 
-LEFT JOIN civicrm_contact AS admin_cc ON ( admin_cc.id = admin_rel.contact_id_a AND admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." )
 
 LEFT JOIN civicrm_relationship AS pres_rel ON ( pc_cong_cc.id = pres_rel.contact_id_a AND pres_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS pres_cc ON ( pres_cc.id = pres_rel.contact_id_b AND pres_cc.contact_sub_type = 'Presbytery')
