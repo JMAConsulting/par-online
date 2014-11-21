@@ -93,9 +93,9 @@ WHERE online.entity_id IS NULL AND relationship_type_id = ' . SUPPORTER_RELATION
 function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
     if ( $objectName == 'contact' ) {
         foreach ( $tasks as $key => $value ) {
-          if ( $key != 6 && $key != 8 && $key != 15 && $key != 16 ) {
-              unset( $tasks[$key] );
-            }
+          if (!in_array($key, array(5, 6, 8, 15, 16))) {
+            unset( $tasks[$key] );
+          }
         }
         
         $classNames = array();
@@ -1865,7 +1865,8 @@ function getOrganizations( $cid, $contactSubType, $displayName ) {
     if ( $contactSubType == 'Congregation' ) {
         $params = array( 
                         'contact_id_a' => $cid,
-                        'relationship_type_id' => 13,
+                        'relationship_type_id' => IS_PART_OF_RELATION_TYPE_ID,
+                        'is_active' => 1,
                         'version' => 3,
                          );
         $result = civicrm_api( 'relationship','get',$params );

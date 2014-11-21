@@ -42,17 +42,20 @@ implements CRM_Contact_Form_Search_Interface {
 
     static $_links = null;
     function __construct( &$formValues ) {
-        parent::__construct( $formValues );
+      parent::__construct( $formValues );
 
-
-        $this->_columns = array( ts('Name') => 'donor_name'  ,
-                                 ts('PAR ID') => 'external_identifier',
-                                 ts('NSF') => 'nsf',
-                                 ts('Status') => 'contribution_status_id',
-                                 ts('Primary E-mail') => 'email',
-                                 ts('PC Name') => 'pc_name',
-                                 ts('Conference' )=> 'conf_name',
-                                 ts('dont Care') => 'activated__48',) ;
+      $extraColumn = array();
+      if (CRM_Utils_Array::value('task', $this->_formValues) == CRM_Contact_Task::EXPORT_CONTACTS) {
+        $extraColumn['CiviCRM Contact ID'] = 'contact_id';
+      }
+      $this->_columns = $extraColumn + array( ts('Name') => 'donor_name'  ,
+        ts('PAR ID') => 'external_identifier',
+        ts('NSF') => 'nsf',
+        ts('Status') => 'contribution_status_id',
+        ts('Primary E-mail') => 'email',
+        ts('PC Name') => 'pc_name',
+        ts('Conference' )=> 'conf_name',
+        ts('Is PAROnline?') => 'activated__48',) ;
     }
     static function &links() {
       if (!(self::$_links)) {
@@ -201,10 +204,13 @@ LEFT JOIN civicrm_log_par_donor clpd ON clpd.primary_contact_id = contact_a.id
     }
 
     function templateFile( ) {
-      unset($this->_columns['dont Care']);
+      unset($this->_columns['Is PAROnline?']);
       $headers =& CRM_Core_Smarty::singleton()->get_template_vars('columnHeaders');
-      unset($headers[5]);
+      unset($headers[7]);
       $rows =& CRM_Core_Smarty::singleton()->get_template_vars('rows');
+      if (!$rows) {
+        $rows = array();
+      }
       $permissions = array(CRM_Core_Permission::getPermission());
       $mask = CRM_Core_Action::mask($permissions);
       $formlinks = self::links();
