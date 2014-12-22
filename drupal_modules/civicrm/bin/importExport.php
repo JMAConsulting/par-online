@@ -46,7 +46,7 @@ Class CRM_par_ImportExport {
     $this->pass = $this->userName[1];
     $this->userName = $this->userName[0];
     $this->flag = FALSE;
-    $this->localhost = '10.50.0.30';
+    $this->localhost = 'localhost';
     $this->monthlySync = CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824');
   }
 

@@ -1686,7 +1686,7 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       $logs = NULL;
       if ($recurID) {
         $logs = CRM_Core_DAO::executeQuery("SELECT par_donor_bank_id, par_donor_branch_id, par_donor_account, general_amount,  
-          `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount, cr.frequency_unit, cr.payment_processor_id, cr.contribution_type_id FROM
+          `m&s_amount` msamount, other_amount, nsf, contribution_status_id, payment_instrument_id, amount, cr.frequency_unit, cr.payment_processor_id, cr.contribution_type_id, cr.invoice_id, cr.trxn_id FROM
           civicrm_log_par_donor clpd 
           LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
           WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
@@ -1714,21 +1714,33 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
         //primary is deleted, transfer recur to secondary
         $extraInsert = '';
         if ($dao->N) {
-          // TODO:: adding bank details to secondary same as primary
-          $extraInsert = ", ({$dao->id}, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize(
-            array(
-              'Status' => CRM_Contribute_PseudoConstant::contributionStatus($logs->contribution_status_id),
-              'Payment Instrument' => $allInstruments[$logs->payment_instrument_id],
-              'Bank #' => $logs->par_donor_bank_id,
-              'Branch #' => $logs->par_donor_branch_id,
-              'Account #' => $logs->par_donor_account,
-              'General' => CRM_Utils_Money::format($logs->general_amount, NULL),
-              'M&S' => CRM_Utils_Money::format($logs->msamount, NULL),
-              'Other' => CRM_Utils_Money::format($logs->other_amount, NULL),
-              'Total' => CRM_Utils_Money::format($logs->amount, NULL),
-              'NSF' => $logs->nsf,                                                    
-            )                                                                                                                      
-          ) . "')";
+          $arrayToSerialize = array(
+            'Status' => CRM_Contribute_PseudoConstant::contributionStatus($logs->contribution_status_id),
+            'Payment Instrument' => $allInstruments[$logs->payment_instrument_id],
+            'General' => CRM_Utils_Money::format($logs->general_amount, NULL),           
+            'Bank #' => $logs->par_donor_bank_id,
+            'Branch #' => $logs->par_donor_branch_id,
+            'Account #' => $logs->par_donor_account,
+            'M&S' => CRM_Utils_Money::format($logs->msamount, NULL),
+            'Other' => CRM_Utils_Money::format($logs->other_amount, NULL),
+            'Total' => CRM_Utils_Money::format($logs->amount, NULL),
+            'NSF' => $logs->nsf,                                                    
+          );
+          if (in_array($logs->par_donor_bank_id, array(VISA, MASTER_CARD))) {
+            // Post a message to LPA/SPA
+          }
+          else {
+            $params = array( 
+              'version' => 3,
+              'custom_11' => $logs->par_donor_bank_id,
+              'custom_12' => $logs->par_donor_branch_id,
+              'custom_13' => $logs->par_donor_account,
+              'entity_id' => $dao->id,
+            );
+            require_once 'api/api.php';
+            civicrm_api('custom_value', 'create', $params);            
+          }
+          $extraInsert = ", ({$dao->id}, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($arrayToSerialize) . "')";
           
           // create a new recuring payment for secondary member
           $recurParams = array( 
@@ -1742,6 +1754,8 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
             'contribution_status_id' => $logs->contribution_status_id,
             'contribution_type_id'   => $logs->contribution_type_id,
             'payment_processor_id'   => $logs->payment_processor_id,
+            'invoice_id'             => $logs->invoice_id,
+            'trxn_id'                => $logs->trxn_id,
             'installments'           => 90010
           );
           require_once 'CRM/Contribute/BAO/ContributionRecur.php';
@@ -1750,6 +1764,52 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
           $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, CRM_Core_DAO::$_nullArray);
           $lineItems = CRM_Price_BAO_LineItem::getLineItems($recurID, 'contribution_recur');
           CRM_Contact_Form_Donation::processRecurPriceSet($recurObj->id, array(1 => $lineItems));
+          //Prepare params for contribution
+          if ($recurID) {
+            $contribution = CRM_Core_DAO::executeQuery("SELECT amount_level, fee_amount, net_amount, source FROM civicrm_contribution WHERE contribution_recur_id  = {$recurID} OREDER BY id DESC LIMIT 1");
+          }
+          $params = array( 
+            'contact_id' => $dao->id,
+            'receive_date' => date('Ymd'),
+            'total_amount' => $logs->amount,
+            'contribution_type_id'   => $logs->contribution_type_id,
+            'payment_instrument_id'  => $logs->payment_instrument_id,
+            'contribution_status_id' => 5,
+            'invoice_id' => $logs->invoice_id,
+            'trxn_id' => $logs->trxn_id,
+            'contribution_recur_id' => $recurObj->id,
+            'custom_32' => $logs->nsf,
+            'version' => 3,
+          );
+          if ($recurID && $contribution->fetch()) {
+            $params += array(
+              'fee_amount' => $contribution->fee_amount,
+              'net_amount' => $contribution->net_amount,
+              'source' => $contribution->source,
+              'amount_level' => $contribution->amount_level,
+            );
+          }
+          else {
+            if ($logs->payment_instrument_id == 1) {
+              $fee = CRM_Utils_Money::format($logs->amount * CC_FEES / 100, null, '%a');
+              $params += array(
+                'fee_amount' => $fee,
+                'net_amount' => CRM_Utils_Money::format($logs->amount - $fee, null, '%a'),
+                'source' => 'Moneris',
+              );
+            }
+            else {
+              $params += array(
+                'fee_amount' => '0.00',
+                'net_amount' => $logs->amount,
+                'source' => 'Direct Debit',
+              );
+            }
+          }
+          $result = civicrm_api( 'contribution', 'create', $params );
+          if (array_key_exists('id', $result)) {
+            CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], array(1 => $lineItems));
+          }
         }
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "') $extraInsert;";
         CRM_Core_DAO::executeQuery($query);
