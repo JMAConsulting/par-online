@@ -1691,6 +1691,16 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
           LEFT JOIN civicrm_contribution_recur cr on cr.contact_id = clpd.primary_contact_id
           WHERE primary_contact_id = {$objectId} and cr.id = {$recurID} AND cr.contribution_status_id <> 1");
       }
+      
+      
+      $query = "UPDATE civicrm_log_par_donor clpd
+LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id IN (5, 7)
+SET  `log_time` = now(),
+{$extraSet}
+ccr.contribution_status_id = 1
+WHERE  clpd.primary_contact_id = {$objectId}";      
+      CRM_Core_DAO::executeQuery($query);
+
       if ($logs && $logs->N) {
         $logs->fetch();
         require_once('CRM/Contribute/PseudoConstant.php');
@@ -1766,17 +1776,15 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
           CRM_Contact_Form_Donation::processRecurPriceSet($recurObj->id, array(1 => $lineItems));
           //Prepare params for contribution
           if ($recurID) {
-            $contribution = CRM_Core_DAO::executeQuery("SELECT amount_level, fee_amount, net_amount, source FROM civicrm_contribution WHERE contribution_recur_id  = {$recurID} OREDER BY id DESC LIMIT 1");
+            $contribution = CRM_Core_DAO::executeQuery("SELECT amount_level, fee_amount, net_amount, source FROM civicrm_contribution WHERE contribution_recur_id  = {$recurID} ORDER BY id DESC LIMIT 1");
           }
           $params = array( 
             'contact_id' => $dao->id,
             'receive_date' => date('Ymd'),
             'total_amount' => $logs->amount,
-            'contribution_type_id'   => $logs->contribution_type_id,
-            'payment_instrument_id'  => $logs->payment_instrument_id,
+            'contribution_type_id' => $logs->contribution_type_id,
+            'payment_instrument_id' => $logs->payment_instrument_id,
             'contribution_status_id' => 5,
-            'invoice_id' => $logs->invoice_id,
-            'trxn_id' => $logs->trxn_id,
             'contribution_recur_id' => $recurObj->id,
             'custom_32' => $logs->nsf,
             'version' => 3,
@@ -1806,22 +1814,15 @@ WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
               );
             }
           }
-          $result = civicrm_api( 'contribution', 'create', $params );
+          $result = civicrm_api('contribution', 'create', $params);
           if (array_key_exists('id', $result)) {
+            require_once 'CRM/Contribute/Form/AdditionalInfo.php';
             CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], array(1 => $lineItems));
           }
         }
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "') $extraInsert;";
         CRM_Core_DAO::executeQuery($query);
       }
-      
-      $query = "UPDATE civicrm_log_par_donor clpd
-LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id IN (5, 7)
-SET  `log_time` = now(),
-{$extraSet}
-ccr.contribution_status_id = 1
-WHERE  clpd.primary_contact_id = {$objectId}";      
-      CRM_Core_DAO::executeQuery($query);
     }
 }
 
