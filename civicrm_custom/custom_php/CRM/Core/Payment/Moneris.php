@@ -140,8 +140,8 @@ class CRM_Core_Payment_Moneris extends CRM_Core_Payment {
             $priceSetField->find(TRUE);
             $items = array (
               'quantity'=> $priceSetField->is_enter_qty,
-              'name'=> $priceSetField->label,
-              'product_code'=> $priceSetField->label,
+              'name'=> htmlspecialchars($priceSetField->label),
+              'product_code'=> htmlspecialchars($priceSetField->label),
               'extended_amount'=> sprintf('%01.2f',$params[$paramsKey]), 
             );
             $mpgCustInfo->setItems($items);                
