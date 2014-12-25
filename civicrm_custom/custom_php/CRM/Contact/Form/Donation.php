@@ -448,9 +448,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisParams[ 'amount' ] = $fieldDetails['amount'];
         $monerisParams[ 'is_recur' ] = 1;
         $monerisParams[ 'frequency_interval' ] = 1;
-        $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
+        $monerisParams[ 'frequency_unit' ] = 'day';
         $monerisParams[ 'installments' ] = 90010;
-        if (!empty($fieldDetails['contribution_id'])) {
+        if (empty($fieldDetails['contribution_id'])) {
           $monerisParams[ 'type' ] = 'purchase';
         }
         else {
@@ -548,6 +548,10 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $params[ 'source' ]           = 'Moneris';
         $monerisResult = $moneris->doDirectPayment( $monerisParams );
         if ( $monerisResult['trxn_result_code'] == '27') {
+          //FIXME:
+          // How to handle in case of update
+          // do we need to create new or update existing?
+          // when we need to create new entry?
           $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
           $params['contribution_recur_id']  = $recurObj->id;
           $result = civicrm_api( 'contribution','create',$params );
