@@ -286,7 +286,11 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Core/OptionGroup.php';
         require_once 'CRM/Core/BAO/PaymentProcessor.php';
         require_once 'CRM/Contribute/PseudoConstant.php';
-        $mode = 'test';
+        
+        $mode = 'live';
+        if (IS_TEST_PAYMENT) {
+          $mode = 'test';
+        }
 
         if (!$hasPostValue) {
           $postParams = $_POST;
@@ -392,7 +396,12 @@ WHERE cc.id = " . $postParams['contribution_id'];
         if (CRM_Utils_Array::value('id',$emailResult)) {
           $monerisParams['email']          = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
         }
-        $invoice      = md5( uniqid( rand( ), true ) );
+        if (!empty($fieldDetails['contribution_id'])) {
+          $invoice = md5( uniqid( rand( ), true ) );
+        }
+        else {
+          $invoice = 'sdsd';
+        }
         $timestamp    = date("H:i:s");
         $currentDate  = date("Y-m-d");
         $date         = getdate();
@@ -417,26 +426,31 @@ WHERE cc.id = " . $postParams['contribution_id'];
         //Prepare recurring contribution params
         
         if ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
-            if( !empty( $lineitem ) ) {
-                foreach ( $lineitem as $lineitemKey => $lineitemValue ) {
-                    $monerisParams[ 'price_'.$lineitemKey] =$lineitemValue['line_total'];
-                }
+          if( !empty( $lineitem ) ) {
+            foreach ( $lineitem as $lineitemKey => $lineitemValue ) {
+              $monerisParams[ 'price_'.$lineitemKey] =$lineitemValue['line_total'];
             }
-            $monerisParams[ 'credit_card_number' ]   = $fieldDetails[ 'cc_number' ];
-            $monerisParams[ 'cvv2' ]                 = $fieldDetails[ 'cavv' ];
-            $monerisParams[ 'credit_card_exp_date' ] = $fieldDetails[ 'cc_expire' ];
-            $monerisParams[ 'credit_card_type' ]     = $ccType[ $fieldDetails[ 'cc_type' ] ];
-            $monerisParams[ 'payment_action' ]       = 'Sale';
-            $monerisParams[ 'invoiceID' ]            = $invoice;
-            $monerisParams[ 'currencyID' ]           = 'CAD';
-            $monerisParams[ 'year' ]                 = $fieldDetails[ 'cc_expire' ]['Y'];
-            $monerisParams[ 'month' ]                = $fieldDetails[ 'cc_expire' ]['M'];
-            $monerisParams[ 'amount' ]               = $fieldDetails['amount'];
-            $monerisParams[ 'is_recur' ]             = 1;
-            $monerisParams[ 'frequency_interval' ]   = 1;
-            $monerisParams[ 'frequency_unit' ]       = $fieldDetails['frequency_unit'];
-            $monerisParams[ 'installments' ]         = 90010;
-            $monerisParams[ 'type' ]                 = 'purchase';
+          }
+          $monerisParams[ 'credit_card_number' ] = $fieldDetails[ 'cc_number' ];
+          $monerisParams[ 'cvv2' ] = $fieldDetails[ 'cavv' ];
+          $monerisParams[ 'credit_card_exp_date' ] = $fieldDetails[ 'cc_expire' ];
+          $monerisParams[ 'credit_card_type' ] = $ccType[ $fieldDetails[ 'cc_type' ] ];
+          $monerisParams[ 'payment_action' ] = 'Sale';
+          $monerisParams[ 'invoiceID' ] = $invoice;
+          $monerisParams[ 'currencyID' ] = 'CAD';
+          $monerisParams[ 'year' ] = $fieldDetails[ 'cc_expire' ]['Y'];
+          $monerisParams[ 'month' ] = $fieldDetails[ 'cc_expire' ]['M'];
+          $monerisParams[ 'amount' ] = $fieldDetails['amount'];
+          $monerisParams[ 'is_recur' ] = 1;
+          $monerisParams[ 'frequency_interval' ] = 1;
+          $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
+          $monerisParams[ 'installments' ] = 90010;
+          if (!empty($fieldDetails['contribution_id'])) {
+            $monerisParams[ 'type' ] = 'purchase';
+          }
+          else {
+            $monerisParams[ 'type' ] = 'recur_update';              
+          }
         }
         $recurParams  = array( 'contact_id'             => $_GET['cid'],
                                'amount'                 => $fieldDetails['amount'],

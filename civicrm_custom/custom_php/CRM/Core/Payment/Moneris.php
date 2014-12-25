@@ -120,62 +120,68 @@ class CRM_Core_Payment_Moneris extends CRM_Core_Payment {
         $mpgCustInfo->setEmail($params['email']);
         //get text representations of province/country to send to moneris for billing info
         require_once 'CRM/Utils/Array.php';
-        $billing = array( 'first_name'  => CRM_Utils_Array::value( 'first_name', $params ),
-                          'last_name'   => CRM_Utils_Array::value( 'last_name', $params ),
-                          'address'     => CRM_Utils_Array::value( 'street_address', $params ),
-                          'city'        => CRM_Utils_Array::value( 'city', $params ),
-                          'province'    => CRM_Utils_Array::value( 'state_province', $params ),
-                          'postal_code' => CRM_Utils_Array::value( 'postal_code', $params ),
-                          'country'     => CRM_Utils_Array::value( 'country', $params ),
-                          );
+        $billing = array( 
+          'first_name' => CRM_Utils_Array::value('first_name', $params),
+          'last_name'=> CRM_Utils_Array::value('last_name', $params),
+          'address' => CRM_Utils_Array::value('street_address', $params),
+          'city' => CRM_Utils_Array::value('city', $params),
+          'province' => CRM_Utils_Array::value('state_province', $params),
+          'postal_code' => CRM_Utils_Array::value('postal_code', $params),
+          'country' => CRM_Utils_Array::value('country', $params),
+        );
         $mpgCustInfo->setBilling($billing);
         require_once 'CRM/Price/DAO/Field.php';
-        foreach( $params as $paramsKey => $paramsValue ) {
-            if( strstr( $paramsKey, 'price_' ) ){
-                $priceKey = explode( '_', $paramsKey );
+        foreach ($params as $paramsKey => $paramsValue) {
+          if (strstr($paramsKey, 'price_')) {
+            $priceKey = explode( '_', $paramsKey );
                 
-                $priceSetField    = new CRM_Price_DAO_Field();
-                $priceSetField->id = $priceKey[1];
-                $priceSetField->find( true );
-                $items = array ('name'=> $priceSetField->label,
-                                'quantity'=> $priceSetField->is_enter_qty,
-                                'product_code'=> $priceSetField->label,
-                                'extended_amount'=> sprintf('%01.2f',$params[$paramsKey]), 
-                                );
-                $mpgCustInfo->setItems($items);
-                
-            }
+            $priceSetField    = new CRM_Price_DAO_Field();
+            $priceSetField->id = $priceKey[1];
+            $priceSetField->find(TRUE);
+            $items = array (
+              'quantity'=> $priceSetField->is_enter_qty,
+              'name'=> $priceSetField->label,
+              'product_code'=> $priceSetField->label,
+              'extended_amount'=> sprintf('%01.2f',$params[$paramsKey]), 
+            );
+            $mpgCustInfo->setItems($items);                
+          }
         }
         
-        $my_orderid    = $params['invoiceID']; // set orderid as invoiceID to help match things up with Moneris later
+        $my_orderid = $params['invoiceID']; // set orderid as invoiceID to help match things up with Moneris later
         $expiry_string = sprintf('%04d%02d',$params['year'],$params['month']);
         $hold = $terminate = 'false';
         require_once 'CRM/Utils/Array.php';
-        if ( CRM_Utils_Array::value('type', $params ) == 'recur_update' ) {
-            if ( $params['payment_status'] == 1 ) {
-                $terminate = 'true';
-            } 
-            if ( $params['payment_status'] == 7 ) {
-                $hold = 'true';
-            }
-            $txnArray=array('type'             => $params['type'],
-                            'order_id'         => $my_orderid,
-                            'cust_id'          => $params['contact_id'],
-                            'recur_amount'     => sprintf('%01.2f',$params['amount']),
-                            'hold'             => $hold,
-                            'terminate'        => $terminate
-                            );
-        } else {
-            $txnArray = array( 'type'       => 'purchase',
-                               'order_id'   => $my_orderid,
-                               'amount'     => sprintf('%01.2f',$params['amount']),
-                               'pan'        => CRM_Utils_Array::value('credit_card_number', $params ),
-                               'crypt_type' => '7',
-                               'cust_id'    => CRM_Utils_Array::value('contact_id', $params )
-                               );
+        if (CRM_Utils_Array::value('type', $params) == 'recur_update') {
+          if ($params['payment_status'] == 1) {
+            $terminate = 'true';
+          } 
+          if ($params['payment_status'] == 7) {
+            $hold = 'true';
+          }
+          $txnArray=array(
+            'type' => $params['type'],
+            'order_id' => $my_orderid,
+            'cust_id' => $params['contact_id'],
+            'recur_amount' => sprintf('%01.2f',$params['amount']),
+            'hold' => $hold,
+            'terminate' => $terminate,
+            'pan' => CRM_Utils_Array::value('credit_card_number', $params),
+          );
         }
-        if ( !empty( $params['year'] ) && !empty( $params['month'] ) ) {
-            $txnArray['expdate'] = substr($expiry_string,2,4);
+        else {
+          $txnArray = array( 
+            'type' => 'purchase',
+            'order_id' => $my_orderid,
+            'amount' => sprintf('%01.2f',$params['amount']),
+            'pan' => CRM_Utils_Array::value('credit_card_number', $params),
+            'crypt_type' => '7',
+            'cust_id' => CRM_Utils_Array::value('contact_id', $params)
+          );
+        }
+        
+        if (!empty($params['year']) && !empty($params['month'])) {
+          $txnArray['expdate'] = substr($expiry_string,2,4);
         }
         // Allow further manipulation of params via custom hooks
         CRM_Utils_Hook::alterPaymentProcessorParams( $this, $params, $txnArray );
@@ -187,66 +193,64 @@ class CRM_Core_Payment_Moneris extends CRM_Core_Payment {
         $mpgTxn->setCustInfo($mpgCustInfo);
         // add a recurring payment if requested
         if ($params['is_recur'] && $params['installments'] > 1) {
-            //Recur Variables
-            $recurUnit     = $params['frequency_unit'];
-            $recurInterval = $params['frequency_interval'];
-            $next = time();
-            $day  = 60 * 60 * 24;
-            switch($recurUnit) {
+          //Recur Variables
+          $recurUnit = $params['frequency_unit'];
+          $recurInterval = $params['frequency_interval'];
+          $next = time();
+          $day  = 60 * 60 * 24;
+          switch($recurUnit) {
             case 'day': $next  += $recurInterval * $day; break;
             case 'week': $next += $recurInterval * $day * 7; break;
             case 'month': 
-                $date         = getdate();
-                if ($date['mday'] >= 20 ) {
-                    $date['mon'] += $recurInterval;
-                    while ($date['mon'] > 12) {
-                        $date['mon']  -= 12;
-                        $date['year'] += 1;
-                    }
+              $date         = getdate();
+              if ($date['mday'] >= 20 ) {
+                $date['mon'] += $recurInterval;
+                while ($date['mon'] > 12) {
+                  $date['mon']  -= 12;
+                  $date['year'] += 1;
                 }
-                $date['mday']  = 20;
-                $next = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
-                break;
+              }
+              $date['mday']  = 20;
+              $next = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
+              break;
             case 'year':
-                $date          = getdate(); 
-                $date['year'] += 1;
-                $next          = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
-                break;
+              $date = getdate(); 
+              $date['year'] += 1;
+              $next = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
+              break;
             default: die('Unexpected error!');
-            }
-            require_once 'CRM/Utils/Array.php';
-            if ( CRM_Utils_Array::value('type',$params ) != 'recur_update' ) {
-                $startDate = date("Y/m/d",$next);
-                $numRecurs = $params['installments'] - 1;
-                $endDate   = '2020/12/12 00:00:00';
-                //$startNow = 'true'; -- setting start now to false will mean the main transaction doesn't happen!
-                $recurAmount = sprintf('%01.2f',$params['amount']);
-                //Create an array with the recur variables
-                $recurArray = array( 'recur_unit'   => $recurUnit, // (day | week | month)
-                                     'start_date'   => $startDate, // yyyy/mm/dd
-                                     'end_date'     => $endDate,
-                                     'num_recurs'   => $numRecurs,
-                                     'start_now'    => 'true',
-                                     'period'       => $recurInterval,
-                                     'recur_amount' => $recurAmount
-                                     );
-                $mpgRecur = new mpgRecur($recurArray);
-                // set the Recur Object to mpgRecur
-                $mpgTxn->setRecur($mpgRecur);
-            }
+          }
+          require_once 'CRM/Utils/Array.php';
+          if ( CRM_Utils_Array::value('type',$params ) != 'recur_update' ) {
+            $startDate = date("Y/m/d",$next);
+            $numRecurs = $params['installments'] - 1;
+            $endDate   = '2020/12/12 00:00:00';
+            //$startNow = 'true'; -- setting start now to false will mean the main transaction doesn't happen!
+            $recurAmount = sprintf('%01.2f',$params['amount']);
+            //Create an array with the recur variables
+            $recurArray = array( 
+              'recur_unit' => $recurUnit, // (day | week | month)
+              'start_date' => $startDate, // yyyy/mm/dd
+              'end_date' => $endDate,
+              'num_recurs' => $numRecurs,
+              'start_now' => 'true',
+              'period' => $recurInterval,
+              'recur_amount' => $recurAmount
+            );
+            $mpgRecur = new mpgRecur($recurArray);
+            // set the Recur Object to mpgRecur
+            $mpgTxn->setRecur($mpgRecur);
+          }
         } 
         //create a mpgRequest object passing the transaction object 
         $mpgRequest = new mpgRequest($mpgTxn);
-
+        
         // create mpgHttpsPost object which does an https post ## 
         // [extra parameter added to library by AD] 
         // $isProduction = ($this->_profile['mode'] == 'live');
         // note that in order to avoid significant edits to downloaded mpgClasses.php file we only change its MONERIS_HOST subdomain from eqsa. to ww3.
         //        $mpgHttpPost  = new mpgHttpsPost($this->_profile['storeid'],$this->_profile['apitoken'],$mpgRequest,$isProduction);
-		include_once 'CRM/Core/Error.php';
-        // CRM_Core_Error::debug('$this->_profile[storeid]',$this->_profile['storeid']);
-        // CRM_Core_Error::debug('$this->_profile[apitoken]',$this->_profile['apitoken']);
-        
+        include_once 'CRM/Core/Error.php';
         
         $mpgHttpPost  = new mpgHttpsPost($this->_profile['storeid'],$this->_profile['apitoken'],$mpgRequest, $this->_profile['url_site'] );
        
