@@ -423,7 +423,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
       $priceSetDetails = CRM_Price_BAO_Set::getSetDetail($fieldDetails['pricesetid']);
       $fields       = $priceSetDetails[$fieldDetails['pricesetid']]['fields'];
       $lineitem     = array();
-      $start_date   = date("Y/m/d H:i:s",$next);
+      $start_date   = date("YmdHis", $next);
       CRM_Price_BAO_Set::processAmount($fields, $fieldDetails, $lineitem);
       //Prepare recurring contribution params
         
@@ -470,6 +470,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         'trxn_id'                => $invoice,
         'installments'           => 90010
       );
+
       //Prepare params for contribution
       $params = array( 
         'contact_id'             => $_GET['cid'],
