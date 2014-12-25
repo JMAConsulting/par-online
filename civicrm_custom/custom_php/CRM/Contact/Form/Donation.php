@@ -274,242 +274,279 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         return $contributionTypes;
     }
 
-    static function saveContribution($postParams = NULL, $hasPostValue = FALSE){
-        require_once 'CRM/Contribute/BAO/ContributionRecur.php';
-        require_once 'CRM/Core/Payment/DirectDebit.php';
-        require_once 'CRM/Core/Payment/Moneris.php';
-        require_once 'CRM/Core/BAO/CustomValueTable.php';
-        require_once 'CRM/Utils/Date.php';
-        require_once 'CRM/Utils/Money.php';
-        require_once 'api/api.php';
-        require_once 'CRM/Core/DAO/PaymentProcessor.php';
-        require_once 'CRM/Core/OptionGroup.php';
-        require_once 'CRM/Core/BAO/PaymentProcessor.php';
-        require_once 'CRM/Contribute/PseudoConstant.php';
+    static function saveContribution($postParams = NULL, $hasPostValue = FALSE) {
+      require_once 'CRM/Contribute/BAO/ContributionRecur.php';
+      require_once 'CRM/Core/Payment/DirectDebit.php';
+      require_once 'CRM/Core/Payment/Moneris.php';
+      require_once 'CRM/Core/BAO/CustomValueTable.php';
+      require_once 'CRM/Utils/Date.php';
+      require_once 'CRM/Utils/Money.php';
+      require_once 'api/api.php';
+      require_once 'CRM/Core/DAO/PaymentProcessor.php';
+      require_once 'CRM/Core/OptionGroup.php';
+      require_once 'CRM/Core/BAO/PaymentProcessor.php';
+      require_once 'CRM/Contribute/PseudoConstant.php';
+      
+      $mode = 'live';
+      if (IS_TEST_PAYMENT) {
+        $mode = 'test';
+      }
+      
+      if (!$hasPostValue) {
+        $postParams = $_POST;
+      }
         
-        $mode = 'live';
-        if (IS_TEST_PAYMENT) {
-          $mode = 'test';
-        }
-
-        if (!$hasPostValue) {
-          $postParams = $_POST;
-        }
+      if (!CRM_Utils_Array::value('cid', $_GET)) {
+        $_GET['cid'] = $postParams['monthly_contact_id'];
+      }
+      $postParams['cid'] = $_GET['cid'];
+      $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment( 10, $mode);
+      $moneris =& CRM_Core_Payment_Moneris::singleton($mode, $paymentProcessorDetails);
+      foreach ($postParams as $postKey => $postValue) {
+        $fieldDetails[ $postKey ] = $postValue;
+      }
         
-        if (!CRM_Utils_Array::value('cid', $_GET)) {
-          $_GET['cid'] = $postParams['monthly_contact_id'];
-        }
-        $postParams['cid'] = $_GET['cid'];
-        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment( 10, $mode);
-        $moneris =& CRM_Core_Payment_Moneris::singleton( $mode, $paymentProcessorDetails );
-        foreach($postParams as $postKey => $postValue ){
-            $fieldDetails[ $postKey ] = $postValue;
-        }
-        
-        if(!empty($postParams['contribution_id'])){
-          $query ="
+      if (!empty($postParams['contribution_id'])) {
+        $query ="
 SELECT cc.total_amount, cc.payment_instrument_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, other_amount, general_amount, `m&s_amount`AS msamount, nsf
 FROM civicrm_contribution  cc LEFT JOIN civicrm_log_par_donor ON cc.contact_id = primary_contact_id 
 WHERE cc.id = " . $postParams['contribution_id'];
-          $dao = CRM_Core_DAO::executeQuery($query);
-          while ($dao->fetch()){
-            $fieldDetails['oldData']= array(
-              'Status' => $fieldDetails['old_status'],
-              'Payment Instrument' => $dao->payment_instrument_id,
-              'Bank #' => $dao->par_donor_bank_id,
-              'Branch #' => $dao->par_donor_branch_id,
-              'Account #' => $dao->par_donor_account,
-              'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
-              'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
-              'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
-              'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
-              'NSF' => $dao->nsf,
-            );
-          } 
-        } 
-        
-        $successfullDonation = 'Donations changed successfully.';
-        
-        if( $fieldDetails[ 'contribution_id' ] && $fieldDetails[ 'old_status' ] == 5 && $fieldDetails['payment_status'] == 5 ){
-          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], 1, TRUE);
-        }
-        elseif ($fieldDetails['contribution_id']) {
-          if ($fieldDetails['payment_instrument'] == 1) {
-            CRM_Core_Session::setStatus(ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.'));
-            echo ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
-            CRM_Utils_System::civiExit();
-          }
-          self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ], $fieldDetails['payment_status'] );
-          $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
-          $logParams = array(
-            'primary_contact_id' => $_GET['cid'], 
-            'nsf' => $postParams['nsf'],
+        $dao = CRM_Core_DAO::executeQuery($query);
+        while ($dao->fetch()) {
+          $fieldDetails['oldData']= array(
+            'Status' => $fieldDetails['old_status'],
+            'Payment Instrument' => $dao->payment_instrument_id,
+            'Bank #' => $dao->par_donor_bank_id,
+            'Branch #' => $dao->par_donor_branch_id,
+            'Account #' => $dao->par_donor_account,
+            'General' => CRM_Utils_Money::format($dao->general_amount, NULL),
+            'M&S' => CRM_Utils_Money::format($dao->msamount, NULL),
+            'Other' => CRM_Utils_Money::format($dao->other_amount, NULL),
+            'Total' => CRM_Utils_Money::format($dao->total_amount, NULL),
+            'NSF' => $dao->nsf,
           );
-          make_entry_in_par_log('Update', $logParams);
-          $fileId = self::save_log_changes($fieldDetails);
-          if ($fileId) {
-            $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
-          }
-          CRM_Core_Session::setStatus(ts($successfullDonation));
-          echo ts($successfullDonation);
+        } 
+      } 
+        
+      $successfullDonation = 'Donations changed successfully.';
+        
+      if($fieldDetails['contribution_id'] && $fieldDetails['old_status'] == 5 && $fieldDetails['payment_status'] == 5) {
+        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], 1, TRUE);
+      }
+      elseif ($fieldDetails['contribution_id']) {
+        if ($fieldDetails['payment_instrument'] == 1) {
+          CRM_Core_Session::setStatus(ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.'));
+          echo ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
           CRM_Utils_System::civiExit();
         }
-        // if( $fieldDetails[ 'contribution_id' ] ){
-        //     self::editContribution( $fieldDetails[ 'contribution_id' ], $fieldDetails[ 'payment_instrument' ] ); 
-        // }
-       
-        $accountDetails = getAccountColumns();
-        $parAccountDetails = array(
-          'bank' => 'custom_11',
-          'branch' => 'custom_12',
-          'account' => 'custom_13',
+        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], $fieldDetails['payment_status'] );
+        $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
+        $logParams = array(
+          'primary_contact_id' => $_GET['cid'], 
+          'nsf' => $postParams['nsf'],
         );
-        $bankDetails    = $accountDetails['fieldId'];
-        $monerisParams = array();
-        $contactParams = array( 'version' => 3,
-                                'id'      => $_GET['cid'] );
-        $contactResult = civicrm_api( 'contact', 'get', $contactParams );
-        $addressParams = array( 'version'           => 3,
-                                'contact_id'        => $_GET['cid'],
-                                'is_billing'        => 1
-                                );
-        $addressResult = civicrm_api( 'address', 'get', $addressParams );
-        $emailParams = array( 'version'           => 3,
-                              'contact_id'        => $_GET['cid'],
-                              'location_type_id'  => 5,
-                              );
-        $emailResult  = civicrm_api( 'email', 'get', $emailParams );
-        $ccType = CRM_Core_OptionGroup::values( 'accept_creditcard' );
-        $monerisParams['contact_id']     = $_GET['cid'];
-        if (CRM_Utils_Array::value('id',$contactResult)) {
-          $monerisParams['first_name']     = CRM_Utils_Array::value('first_name', $contactResult['values'][$contactResult['id']]);
-          $monerisParams['middle_name']    = CRM_Utils_Array::value('middle_name', $contactResult['values'][$contactResult['id']]);
-          $monerisParams['last_name']      = CRM_Utils_Array::value('last_name', $contactResult['values'][$contactResult['id']]);
+        make_entry_in_par_log('Update', $logParams);
+        $fileId = self::save_log_changes($fieldDetails);
+        if ($fileId) {
+          $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
         }
-        if (CRM_Utils_Array::value('id',$addressResult)) {
-          $monerisParams['street_address'] = CRM_Utils_Array::value('street_address', $addressResult['values'][$addressResult['id']]);
-          $monerisParams['city']           = CRM_Utils_Array::value('city', $addressResult['values'][$addressResult['id']]);
-          $monerisParams['province']       = CRM_Utils_Array::value('state_province_id', $addressResult['values'][$addressResult['id']]);
-          $monerisParams['country']        = CRM_Utils_Array::value('country_id', $addressResult['values'][$addressResult['id']]);  
-          $monerisParams['postal_code']    = CRM_Utils_Array::value('postal_code', $addressResult['values'][$addressResult['id']]);
+        CRM_Core_Session::setStatus(ts($successfullDonation));
+        echo ts($successfullDonation);
+        CRM_Utils_System::civiExit();
+      }
+      
+      $accountDetails = getAccountColumns();
+      $parAccountDetails = array(
+        'bank' => 'custom_11',
+        'branch' => 'custom_12',
+        'account' => 'custom_13',
+      );
+      $bankDetails    = $accountDetails['fieldId'];
+      $monerisParams = array();
+      $contactParams = array( 
+        'version' => 3,
+        'id'      => $_GET['cid'] );
+      $contactResult = civicrm_api('contact', 'get', $contactParams);
+      $addressParams = array( 
+        'version'           => 3,
+        'contact_id'        => $_GET['cid'],
+        'is_billing'        => 1
+      );
+      $addressResult = civicrm_api('address', 'get', $addressParams);
+      $emailParams = array( 
+        'version'           => 3,
+        'contact_id'        => $_GET['cid'],
+        'location_type_id'  => 5,
+      );
+      $emailResult  = civicrm_api('email', 'get', $emailParams);
+      $ccType = CRM_Core_OptionGroup::values( 'accept_creditcard' );
+      $monerisParams['contact_id']     = $_GET['cid'];
+      if (CRM_Utils_Array::value('id',$contactResult)) {
+        $monerisParams['first_name']     = CRM_Utils_Array::value('first_name', $contactResult['values'][$contactResult['id']]);
+        $monerisParams['middle_name']    = CRM_Utils_Array::value('middle_name', $contactResult['values'][$contactResult['id']]);
+        $monerisParams['last_name']      = CRM_Utils_Array::value('last_name', $contactResult['values'][$contactResult['id']]);
+      }
+      if (CRM_Utils_Array::value('id',$addressResult)) {
+        $monerisParams['street_address'] = CRM_Utils_Array::value('street_address', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['city']           = CRM_Utils_Array::value('city', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['province']       = CRM_Utils_Array::value('state_province_id', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['country']        = CRM_Utils_Array::value('country_id', $addressResult['values'][$addressResult['id']]);  
+        $monerisParams['postal_code']    = CRM_Utils_Array::value('postal_code', $addressResult['values'][$addressResult['id']]);
+      }
+      if (CRM_Utils_Array::value('id',$emailResult)) {
+        $monerisParams['email']          = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
+      }
+      if (empty($fieldDetails['contribution_id'])) {
+        $invoice = md5(uniqid(rand(), true));
+      }
+      else {
+        require_once 'CRM/Core/DAO.php';
+        $recurId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails['contribution_id'], 'contribution_recur_id');
+        $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
+      }
+      $timestamp    = date("H:i:s");
+      $currentDate  = date("Y-m-d");
+      $date         = getdate();
+      if ($date['mday'] > 20) {
+        $date['mon'] += $recurInterval;
+        while ($date['mon'] > 12) {
+          $date['mon']  -= 12;
+          $date['year'] += 1;
         }
-        if (CRM_Utils_Array::value('id',$emailResult)) {
-          $monerisParams['email']          = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
+      }
+      $date['mday']  = 20;
+      $next         = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
+      $time         = explode(':', $timestamp);
+      $date         = explode('-', $currentDate);     
+      $trxn_date    = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2]));
+      require_once 'CRM/Price/BAO/Set.php';
+      $priceSetDetails = CRM_Price_BAO_Set::getSetDetail($fieldDetails['pricesetid']);
+      $fields       = $priceSetDetails[$fieldDetails['pricesetid']]['fields'];
+      $lineitem     = array();
+      $start_date   = date("Y/m/d H:i:s",$next);
+      CRM_Price_BAO_Set::processAmount($fields, $fieldDetails, $lineitem);
+      //Prepare recurring contribution params
+        
+      if ($fieldDetails['payment_instrument'] == 1) {
+        if( !empty( $lineitem ) ) {
+          foreach ( $lineitem as $lineitemKey => $lineitemValue ) {
+            $monerisParams[ 'price_'.$lineitemKey] =$lineitemValue['line_total'];
+          }
         }
+        $monerisParams[ 'credit_card_number' ] = $fieldDetails[ 'cc_number' ];
+        $monerisParams[ 'cvv2' ] = $fieldDetails[ 'cavv' ];
+        $monerisParams[ 'credit_card_exp_date' ] = $fieldDetails[ 'cc_expire' ];
+        $monerisParams[ 'credit_card_type' ] = $ccType[ $fieldDetails[ 'cc_type' ] ];
+        $monerisParams[ 'payment_action' ] = 'Sale';
+        $monerisParams[ 'invoiceID' ] = $invoice;
+        $monerisParams[ 'currencyID' ] = 'CAD';
+        $monerisParams[ 'year' ] = $fieldDetails[ 'cc_expire' ]['Y'];
+        $monerisParams[ 'month' ] = $fieldDetails[ 'cc_expire' ]['M'];
+        $monerisParams[ 'amount' ] = $fieldDetails['amount'];
+        $monerisParams[ 'is_recur' ] = 1;
+        $monerisParams[ 'frequency_interval' ] = 1;
+        $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
+        $monerisParams[ 'installments' ] = 90010;
         if (!empty($fieldDetails['contribution_id'])) {
-          $invoice = md5( uniqid( rand( ), true ) );
+          $monerisParams[ 'type' ] = 'purchase';
         }
         else {
-          $invoice = 'sdsd';
+          $monerisParams[ 'type' ] = 'recur_update';              
         }
-        $timestamp    = date("H:i:s");
-        $currentDate  = date("Y-m-d");
-        $date         = getdate();
-        if ($date['mday'] > 20 ) {
-            $date['mon'] += $recurInterval;
-            while ($date['mon'] > 12) {
-                $date['mon']  -= 12;
-                $date['year'] += 1;
-            }
+      }
+      $recurParams  = array( 
+        'contact_id'             => $_GET['cid'],
+        'amount'                 => $fieldDetails['amount'],
+        'start_date'             => $start_date,
+        'create_date'            => $trxn_date,
+        'modified_date'          => $trxn_date,
+        'frequency_unit'         => $fieldDetails['frequency_unit'],
+        'frequency_interval'     => 1,
+        'payment_instrument_id'  => $fieldDetails['payment_instrument'],
+        'contribution_status_id' => 5,
+        'payment_processor_id'   => 6,
+        'invoice_id'             => $invoice,
+        'contribution_type_id'   => $fieldDetails['contribution_type'],
+        'trxn_id'                => $invoice,
+        'installments'           => 90010
+      );
+      //Prepare params for contribution
+      $params = array( 
+        'contact_id'             => $_GET['cid'],
+        'receive_date'           => $trxn_date,
+        'total_amount'           => $fieldDetails['amount'],
+        'contribution_type_id'   => $fieldDetails['contribution_type'],
+        'payment_instrument_id'  => $fieldDetails['payment_instrument'],
+        'trxn_id'                => $invoice,
+        'invoice_id'             => $invoice,
+        'contribution_status_id' => 5,
+        'priceSetId'             => $fieldDetails['pricesetid'],
+        'custom_32'             => $fieldDetails['nsf'],
+        'version'                => 3,
+      );
+      foreach( $lineitem as $lineItemKey => $lineItemValue ){
+        if( array_key_exists( 'price_'.$lineItemKey, $fieldDetails ) ){
+          $params[ 'price_'.$lineItemKey ] = $fieldDetails[ 'price_'.$lineItemKey ];
         }
-        $date['mday']  = 20;
-        $next         = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
-        $time         = explode(':', $timestamp);
-        $date         = explode('-', $currentDate);     
-        $trxn_date    = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2] ) );
-        require_once 'CRM/Price/BAO/Set.php';
-        $priceSetDetails = CRM_Price_BAO_Set::getSetDetail( $fieldDetails['pricesetid'] );
-        $fields       = $priceSetDetails[ $fieldDetails['pricesetid'] ][ 'fields' ];
-        $lineitem     = array();
-        $start_date   = date("Y/m/d H:i:s",$next);
-        CRM_Price_BAO_Set::processAmount( $fields, $fieldDetails, $lineitem );
-        //Prepare recurring contribution params
+      }
+      if ( array_key_exists( 'amount_level', $fieldDetails ) ){
+        $params[ 'amount_level' ] = $fieldDetails[ 'amount_level' ];
+      }
         
-        if ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
-          if( !empty( $lineitem ) ) {
-            foreach ( $lineitem as $lineitemKey => $lineitemValue ) {
-              $monerisParams[ 'price_'.$lineitemKey] =$lineitemValue['line_total'];
-            }
-          }
-          $monerisParams[ 'credit_card_number' ] = $fieldDetails[ 'cc_number' ];
-          $monerisParams[ 'cvv2' ] = $fieldDetails[ 'cavv' ];
-          $monerisParams[ 'credit_card_exp_date' ] = $fieldDetails[ 'cc_expire' ];
-          $monerisParams[ 'credit_card_type' ] = $ccType[ $fieldDetails[ 'cc_type' ] ];
-          $monerisParams[ 'payment_action' ] = 'Sale';
-          $monerisParams[ 'invoiceID' ] = $invoice;
-          $monerisParams[ 'currencyID' ] = 'CAD';
-          $monerisParams[ 'year' ] = $fieldDetails[ 'cc_expire' ]['Y'];
-          $monerisParams[ 'month' ] = $fieldDetails[ 'cc_expire' ]['M'];
-          $monerisParams[ 'amount' ] = $fieldDetails['amount'];
-          $monerisParams[ 'is_recur' ] = 1;
-          $monerisParams[ 'frequency_interval' ] = 1;
-          $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
-          $monerisParams[ 'installments' ] = 90010;
-          if (!empty($fieldDetails['contribution_id'])) {
-            $monerisParams[ 'type' ] = 'purchase';
-          }
-          else {
-            $monerisParams[ 'type' ] = 'recur_update';              
+      if ( $fieldDetails[ 'payment_instrument' ] != 1 ) {
+        $paymentProcessor = new CRM_Core_Payment_DirectDebit($mode, $paymentProcessor = NULL);
+        $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams, $ids = NULL );
+        $params[ 'contribution_recur_id' ] = $recurObj->id;
+        $params[ 'source' ]                = 'Direct Debit';
+        $params[ 'fee_amount' ]            = 0.00;
+        $params[ 'net_amount' ]            = $params[ 'total_amount' ];
+        foreach( $bankDetails as $bankKey => $bankValue ) {
+          $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
+          if ($bankKey != 'type') {
+            $contactCustom[$parAccountDetails[$bankKey]] = CRM_Utils_Array::value($bankKey, $fieldDetails);
           }
         }
-        $recurParams  = array( 'contact_id'             => $_GET['cid'],
-                               'amount'                 => $fieldDetails['amount'],
-                               'start_date'             => $start_date,
-                               'create_date'            => $trxn_date,
-                               'modified_date'          => $trxn_date,
-                               'frequency_unit'         => $fieldDetails['frequency_unit'],
-                               'frequency_interval'     => 1,
-                               'payment_instrument_id'  => $fieldDetails['payment_instrument'],
-                               'contribution_status_id' => 5,
-                               'payment_processor_id'   => 6,
-                               'invoice_id'             => $invoice,
-                               'contribution_type_id'   => $fieldDetails['contribution_type'],
-                               'trxn_id'                => $invoice,
-                               'installments'           => 90010
-                               );
-        //Prepare params for contribution
-        $params = array( 
-                        'contact_id'             => $_GET['cid'],
-                        'receive_date'           => $trxn_date,
-                        'total_amount'           => $fieldDetails['amount'],
-                        'contribution_type_id'   => $fieldDetails['contribution_type'],
-                        'payment_instrument_id'  => $fieldDetails['payment_instrument'],
-                        'trxn_id'                => $invoice,
-                        'invoice_id'             => $invoice,
-                        'contribution_status_id' => 5,
-                        'priceSetId'             => $fieldDetails['pricesetid'],
-                        'custom_32'             => $fieldDetails['nsf'],
-                        'version'                => 3,
-                         );
-        foreach( $lineitem as $lineItemKey => $lineItemValue ){
-            if( array_key_exists( 'price_'.$lineItemKey, $fieldDetails ) ){
-                $params[ 'price_'.$lineItemKey ] = $fieldDetails[ 'price_'.$lineItemKey ];
-            }
-        }
-        if ( array_key_exists( 'amount_level', $fieldDetails ) ){
-          $params[ 'amount_level' ] = $fieldDetails[ 'amount_level' ];
-        }
-        
-        if ( $fieldDetails[ 'payment_instrument' ] != 1 ) {
-          $paymentProcessor = new CRM_Core_Payment_DirectDebit($mode, $paymentProcessor = NULL);
-          $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams, $ids = NULL );
-          $params[ 'contribution_recur_id' ] = $recurObj->id;
-          $params[ 'source' ]                = 'Direct Debit';
-          $params[ 'fee_amount' ]            = 0.00;
-          $params[ 'net_amount' ]            = $params[ 'total_amount' ];
-          foreach( $bankDetails as $bankKey => $bankValue ) {
-            $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
-            if ($bankKey != 'type') {
-              $contactCustom[$parAccountDetails[$bankKey]] = CRM_Utils_Array::value($bankKey, $fieldDetails);
-            }
+        unset( $params[$bankDetails['type']] );
+        $paymentProcessor->doDirectPayment( $params );
+        $contactCustom['version'] = 3;
+        $contactCustom['contact_id'] = $_GET['cid'];
+        $contactCustom['contact_type'] = 'Individual';
+        civicrm_api('contact', 'create', $contactCustom);
+        $result = civicrm_api( 'contribution', 'create', $params );
+        if (array_key_exists('id', $result) && $fieldDetails['pricesetid']) {
+          require_once 'CRM/Contribute/Form/AdditionalInfo.php';
+          $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
+          CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
+          if ($recurObj->id) {
+            self::processRecurPriceSet($recurObj->id, $lineSet);
           }
-          unset( $params[$bankDetails['type']] );
-          $paymentProcessor->doDirectPayment( $params );
-          $contactCustom['version'] = 3;
-          $contactCustom['contact_id'] = $_GET['cid'];
-          $contactCustom['contact_type'] = 'Individual';
-          civicrm_api('contact', 'create', $contactCustom);
-          $result = civicrm_api( 'contribution', 'create', $params );
+        }
+      } 
+      elseif ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
+        if ($fieldDetails['cc_type'] == 1) {
+          $bankIDValue =  VISA;
+        }
+        else {
+          $bankIDValue = MASTER_CARD;
+        }
+        foreach( $bankDetails as $bankKey => $bankValue ) {
+          $params[$bankValue] = $bankIDValue;
+          if ($bankKey != 'type') {
+            $contactCustom[$parAccountDetails[$bankKey]] = $bankIDValue;
+          }
+        }
+        $contactCustom['version'] = 3;
+        $contactCustom['contact_id'] = $_GET['cid'];
+        $contactCustom['contact_type'] = 'Individual';
+        $contact = civicrm_api('contact', 'create', $contactCustom);
+        $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
+        $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
+        $params[ 'source' ]           = 'Moneris';
+        $monerisResult = $moneris->doDirectPayment( $monerisParams );
+        if ( $monerisResult['trxn_result_code'] == '27') {
+          $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
+          $params['contribution_recur_id']  = $recurObj->id;
+          $result = civicrm_api( 'contribution','create',$params );
           if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
             require_once 'CRM/Contribute/Form/AdditionalInfo.php';
             $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
@@ -518,56 +555,23 @@ WHERE cc.id = " . $postParams['contribution_id'];
               self::processRecurPriceSet($recurObj->id, $lineSet);
             }
           }
-        } elseif ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
-          if ($fieldDetails['cc_type'] == 1) {
-            $bankIDValue =  VISA;
-          }
-          else {
-            $bankIDValue = MASTER_CARD;
-          }
-          foreach( $bankDetails as $bankKey => $bankValue ) {
-            $params[$bankValue] = $bankIDValue;
-            if ($bankKey != 'type') {
-              $contactCustom[$parAccountDetails[$bankKey]] = $bankIDValue;
-            }
-          }
-          $contactCustom['version'] = 3;
-          $contactCustom['contact_id'] = $_GET['cid'];
-          $contactCustom['contact_type'] = 'Individual';
-          $contact = civicrm_api('contact', 'create', $contactCustom);
-          $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
-          $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
-          $params[ 'source' ]           = 'Moneris';
-          $monerisResult = $moneris->doDirectPayment( $monerisParams );
-          if ( $monerisResult['trxn_result_code'] == '27') {
-            $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
-            $params['contribution_recur_id']  = $recurObj->id;
-            $result = civicrm_api( 'contribution','create',$params );
-            if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
-              require_once 'CRM/Contribute/Form/AdditionalInfo.php';
-              $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
-              CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
-               if ($recurObj->id) {
-                 self::processRecurPriceSet($recurObj->id, $lineSet);
-               }
-            }
-          }
         }
+      }
         
-        $logParams = array(
-          'primary_contact_id' => $_GET['cid'], 
-          'nsf' => $postParams['nsf'],
-        );
-        make_entry_in_par_log('Update', $logParams);
+      $logParams = array(
+        'primary_contact_id' => $_GET['cid'], 
+        'nsf' => $postParams['nsf'],
+      );
+      make_entry_in_par_log('Update', $logParams);
         
-        //UCCPAR-491 
-        $fileId = self::save_log_changes($fieldDetails);
-        if ($fileId) {
-          $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
-        }
-        CRM_Core_Session::setStatus(ts($successfullDonation));
-        echo ts($successfullDonation);
-        CRM_Utils_System::civiExit();
+      //UCCPAR-491 
+      $fileId = self::save_log_changes($fieldDetails);
+      if ($fileId) {
+        $successfullDonation .= ' Documentation to support this change should be filed under File # ' . $fileId;
+      }
+      CRM_Core_Session::setStatus(ts($successfullDonation));
+      echo ts($successfullDonation);
+      CRM_Utils_System::civiExit();
     }
     
     function editContribution($contributionId, $paymentInstrument, $status = 1, $noChanges = FALSE){
