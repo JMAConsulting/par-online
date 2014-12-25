@@ -396,13 +396,16 @@ WHERE cc.id = " . $postParams['contribution_id'];
       if (CRM_Utils_Array::value('id',$emailResult)) {
         $monerisParams['email']          = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
       }
-      if (empty($fieldDetails['contribution_id'])) {
-        $invoice = md5(uniqid(rand(), true));
-      }
-      else {
-        require_once 'CRM/Core/DAO.php';
-        $recurId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails['contribution_id'], 'contribution_recur_id');
-        $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
+      $invoice = NULL;
+      if ($fieldDetails['payment_instrument'] == 1) {
+        if (empty($fieldDetails['contribution_id'])) {
+          $invoice = md5(uniqid(rand(), true));
+        }
+        else {
+          require_once 'CRM/Core/DAO.php';
+          $recurId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails['contribution_id'], 'contribution_recur_id');
+          $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
+        }
       }
       $timestamp    = date("H:i:s");
       $currentDate  = date("Y-m-d");
