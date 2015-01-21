@@ -335,11 +335,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       elseif ($fieldDetails['contribution_id']) {
         if ($fieldDetails['payment_instrument'] == 1) {
-          CRM_Core_Session::setStatus(ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.'));
-          echo ts('Credit card donations cannot be stopped. If you wish to stop the donation please delete it and renter it again once the donor wishes to have their donations start again.');
-          CRM_Utils_System::civiExit();
+          //ADD code to change the status
         }
-        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], $fieldDetails['payment_status'] );
+        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], $fieldDetails['payment_status']);
         $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
         $logParams = array(
           'primary_contact_id' => $_GET['cid'], 
@@ -388,13 +386,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       if (CRM_Utils_Array::value('id',$addressResult)) {
         $monerisParams['street_address'] = CRM_Utils_Array::value('street_address', $addressResult['values'][$addressResult['id']]);
-        $monerisParams['city']           = CRM_Utils_Array::value('city', $addressResult['values'][$addressResult['id']]);
-        $monerisParams['province']       = CRM_Utils_Array::value('state_province_id', $addressResult['values'][$addressResult['id']]);
-        $monerisParams['country']        = CRM_Utils_Array::value('country_id', $addressResult['values'][$addressResult['id']]);  
-        $monerisParams['postal_code']    = CRM_Utils_Array::value('postal_code', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['city'] = CRM_Utils_Array::value('city', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['province'] = CRM_Utils_Array::value('state_province_id', $addressResult['values'][$addressResult['id']]);
+        $monerisParams['country'] = CRM_Utils_Array::value('country_id', $addressResult['values'][$addressResult['id']]);  
+        $monerisParams['postal_code'] = CRM_Utils_Array::value('postal_code', $addressResult['values'][$addressResult['id']]);
       }
       if (CRM_Utils_Array::value('id',$emailResult)) {
-        $monerisParams['email']          = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
+        $monerisParams['email'] = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
       }
       $invoice = NULL;
       if ($fieldDetails['payment_instrument'] == 1) {
@@ -407,9 +405,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
           $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
         }
       }
-      $timestamp    = date("H:i:s");
-      $currentDate  = date("Y-m-d");
-      $date         = getdate();
+      $timestamp = date("H:i:s");
+      $currentDate = date("Y-m-d");
+      $date = getdate();
       if ($date['mday'] > 20) {
         $date['mon'] += $recurInterval;
         while ($date['mon'] > 12) {
@@ -418,15 +416,15 @@ WHERE cc.id = " . $postParams['contribution_id'];
         }
       }
       $date['mday']  = 20;
-      $next         = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
-      $time         = explode(':', $timestamp);
-      $date         = explode('-', $currentDate);     
-      $trxn_date    = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2]));
+      $next = mktime($date['hours'],$date['minutes'],$date['seconds'],$date['mon'],$date['mday'],$date['year']);
+      $time = explode(':', $timestamp);
+      $date = explode('-', $currentDate);     
+      $trxn_date = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2]));
       require_once 'CRM/Price/BAO/Set.php';
       $priceSetDetails = CRM_Price_BAO_Set::getSetDetail($fieldDetails['pricesetid']);
-      $fields       = $priceSetDetails[$fieldDetails['pricesetid']]['fields'];
-      $lineitem     = array();
-      $start_date   = date("YmdHis", $next);
+      $fields = $priceSetDetails[$fieldDetails['pricesetid']]['fields'];
+      $lineitem = array();
+      $start_date = date("YmdHis", $next);
       CRM_Price_BAO_Set::processAmount($fields, $fieldDetails, $lineitem);
       //Prepare recurring contribution params
         
@@ -436,104 +434,104 @@ WHERE cc.id = " . $postParams['contribution_id'];
             $monerisParams[ 'price_'.$lineitemKey] =$lineitemValue['line_total'];
           }
         }
-        $monerisParams[ 'credit_card_number' ] = $fieldDetails[ 'cc_number' ];
-        $monerisParams[ 'cvv2' ] = $fieldDetails[ 'cavv' ];
-        $monerisParams[ 'credit_card_exp_date' ] = $fieldDetails[ 'cc_expire' ];
-        $monerisParams[ 'credit_card_type' ] = $ccType[ $fieldDetails[ 'cc_type' ] ];
-        $monerisParams[ 'payment_action' ] = 'Sale';
-        $monerisParams[ 'invoiceID' ] = $invoice;
-        $monerisParams[ 'currencyID' ] = 'CAD';
-        $monerisParams[ 'year' ] = $fieldDetails[ 'cc_expire' ]['Y'];
-        $monerisParams[ 'month' ] = $fieldDetails[ 'cc_expire' ]['M'];
-        $monerisParams[ 'amount' ] = $fieldDetails['amount'];
-        $monerisParams[ 'is_recur' ] = 1;
-        $monerisParams[ 'frequency_interval' ] = 1;
-        $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
-        $monerisParams[ 'installments' ] = 90010;
+        $monerisParams['credit_card_number'] = $fieldDetails['cc_number'];
+        $monerisParams['cvv2'] = $fieldDetails['cavv'];
+        $monerisParams['credit_card_exp_date'] = $fieldDetails['cc_expire'];
+        $monerisParams['credit_card_type'] = $ccType[$fieldDetails['cc_type']];
+        $monerisParams['payment_action'] = 'Sale';
+        $monerisParams['invoiceID'] = $invoice;
+        $monerisParams['currencyID'] = 'CAD';
+        $monerisParams['year'] = $fieldDetails['cc_expire']['Y'];
+        $monerisParams['month'] = $fieldDetails['cc_expire']['M'];
+        $monerisParams['amount'] = $fieldDetails['amount'];
+        $monerisParams['is_recur'] = 1;
+        $monerisParams['frequency_interval'] = 1;
+        $monerisParams['frequency_unit'] = $fieldDetails['frequency_unit'];
+        $monerisParams['installments'] = 90010;
         if (empty($fieldDetails['contribution_id'])) {
-          $monerisParams[ 'type' ] = 'purchase';
+          $monerisParams['type'] = 'purchase';
         }
         else {
-          $monerisParams[ 'type' ] = 'recur_update';              
+          $monerisParams['type'] = 'recur_update';              
         }
       }
       $recurParams  = array( 
-        'contact_id'             => $_GET['cid'],
-        'amount'                 => $fieldDetails['amount'],
-        'start_date'             => $start_date,
-        'create_date'            => $trxn_date,
-        'modified_date'          => $trxn_date,
-        'frequency_unit'         => $fieldDetails['frequency_unit'],
-        'frequency_interval'     => 1,
-        'payment_instrument_id'  => $fieldDetails['payment_instrument'],
-        'contribution_status_id' => 5,
-        'payment_processor_id'   => 6,
-        'invoice_id'             => $invoice,
-        'contribution_type_id'   => $fieldDetails['contribution_type'],
-        'trxn_id'                => $invoice,
-        'installments'           => 90010
+        'contact_id' => $_GET['cid'],
+        'amount' => $fieldDetails['amount'],
+        'start_date' => $start_date,
+        'create_date' => $trxn_date,
+        'modified_date' => $trxn_date,
+        'frequency_unit' => $fieldDetails['frequency_unit'],
+        'frequency_interval' => 1,
+        'payment_instrument_id' => $fieldDetails['payment_instrument'],
+        'contribution_status_id' => $fieldDetails['payment_status'],
+        'payment_processor_id' => 6,
+        'invoice_id' => $invoice,
+        'contribution_type_id' => $fieldDetails['contribution_type'],
+        'trxn_id' => $invoice,
+        'installments' => 90010
       );
 
       //Prepare params for contribution
       $params = array( 
-        'contact_id'             => $_GET['cid'],
-        'receive_date'           => $trxn_date,
-        'total_amount'           => $fieldDetails['amount'],
-        'contribution_type_id'   => $fieldDetails['contribution_type'],
-        'payment_instrument_id'  => $fieldDetails['payment_instrument'],
-        'trxn_id'                => $invoice,
-        'invoice_id'             => $invoice,
-        'contribution_status_id' => 5,
-        'priceSetId'             => $fieldDetails['pricesetid'],
-        'custom_32'             => $fieldDetails['nsf'],
-        'version'                => 3,
+        'contact_id' => $_GET['cid'],
+        'receive_date' => $trxn_date,
+        'total_amount' => $fieldDetails['amount'],
+        'contribution_type_id' => $fieldDetails['contribution_type'],
+        'payment_instrument_id' => $fieldDetails['payment_instrument'],
+        'trxn_id' => $invoice,
+        'invoice_id' => $invoice,
+        'contribution_status_id' => $fieldDetails['payment_status'],
+        'priceSetId' => $fieldDetails['pricesetid'],
+        'custom_32' => $fieldDetails['nsf'],
+        'version' => 3,
       );
-      foreach( $lineitem as $lineItemKey => $lineItemValue ){
-        if( array_key_exists( 'price_'.$lineItemKey, $fieldDetails ) ){
-          $params[ 'price_'.$lineItemKey ] = $fieldDetails[ 'price_'.$lineItemKey ];
+      foreach ($lineitem as $lineItemKey => $lineItemValue) {
+        if (array_key_exists('price_'.$lineItemKey, $fieldDetails)) {
+          $params['price_'.$lineItemKey] = $fieldDetails['price_'.$lineItemKey];
         }
       }
-      if ( array_key_exists( 'amount_level', $fieldDetails ) ){
-        $params[ 'amount_level' ] = $fieldDetails[ 'amount_level' ];
+      if (array_key_exists('amount_level', $fieldDetails)) {
+        $params['amount_level'] = $fieldDetails['amount_level'];
       }
         
-      if ( $fieldDetails[ 'payment_instrument' ] != 1 ) {
+      if ($fieldDetails[ 'payment_instrument' ] != 1) {
         $paymentProcessor = new CRM_Core_Payment_DirectDebit($mode, $paymentProcessor = NULL);
-        $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams, $ids = NULL );
-        $params[ 'contribution_recur_id' ] = $recurObj->id;
-        $params[ 'source' ]                = 'Direct Debit';
-        $params[ 'fee_amount' ]            = 0.00;
-        $params[ 'net_amount' ]            = $params[ 'total_amount' ];
-        foreach( $bankDetails as $bankKey => $bankValue ) {
+        $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, $ids = NULL);
+        $params['contribution_recur_id'] = $recurObj->id;
+        $params['source'] = 'Direct Debit';
+        $params['fee_amount'] = 0.00;
+        $params['net_amount'] = $params[ 'total_amount' ];
+        foreach ($bankDetails as $bankKey => $bankValue) {
           $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
           if ($bankKey != 'type') {
             $contactCustom[$parAccountDetails[$bankKey]] = CRM_Utils_Array::value($bankKey, $fieldDetails);
           }
         }
-        unset( $params[$bankDetails['type']] );
-        $paymentProcessor->doDirectPayment( $params );
+        unset($params[$bankDetails['type']]);
+        $paymentProcessor->doDirectPayment($params);
         $contactCustom['version'] = 3;
         $contactCustom['contact_id'] = $_GET['cid'];
         $contactCustom['contact_type'] = 'Individual';
         civicrm_api('contact', 'create', $contactCustom);
-        $result = civicrm_api( 'contribution', 'create', $params );
+        $result = civicrm_api('contribution', 'create', $params);
         if (array_key_exists('id', $result) && $fieldDetails['pricesetid']) {
           require_once 'CRM/Contribute/Form/AdditionalInfo.php';
-          $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
-          CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
+          $lineSet[$fieldDetails['pricesetid']] = $lineitem;
+          CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], $lineSet);
           if ($recurObj->id) {
             self::processRecurPriceSet($recurObj->id, $lineSet);
           }
         }
       } 
-      elseif ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
+      elseif ($fieldDetails['payment_instrument'] == 1) {
         if ($fieldDetails['cc_type'] == 1) {
           $bankIDValue =  VISA;
         }
         else {
           $bankIDValue = MASTER_CARD;
         }
-        foreach( $bankDetails as $bankKey => $bankValue ) {
+        foreach ($bankDetails as $bankKey => $bankValue) {
           $params[$bankValue] = $bankIDValue;
           if ($bankKey != 'type') {
             $contactCustom[$parAccountDetails[$bankKey]] = $bankIDValue;
@@ -543,22 +541,18 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $contactCustom['contact_id'] = $_GET['cid'];
         $contactCustom['contact_type'] = 'Individual';
         $contact = civicrm_api('contact', 'create', $contactCustom);
-        $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
-        $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
-        $params[ 'source' ]           = 'Moneris';
-        $monerisResult = $moneris->doDirectPayment( $monerisParams );
+        $params['fee_amount'] = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a');
+        $params['net_amount'] = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a');
+        $params['source'] = 'Moneris';
+        $monerisResult = $moneris->doDirectPayment($monerisParams);
         if ( $monerisResult['trxn_result_code'] == '27') {
-          //FIXME:
-          // How to handle in case of update
-          // do we need to create new or update existing?
-          // when we need to create new entry?
-          $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
-          $params['contribution_recur_id']  = $recurObj->id;
-          $result = civicrm_api( 'contribution','create',$params );
-          if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
+          $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
+          $params['contribution_recur_id'] = $recurObj->id;
+          $result = civicrm_api('contribution','create',$params);
+          if (array_key_exists('id', $result ) && $fieldDetails['pricesetid']) {
             require_once 'CRM/Contribute/Form/AdditionalInfo.php';
-            $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
-            CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
+            $lineSet[$fieldDetails['pricesetid']] = $lineitem;
+            CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], $lineSet);
             if ($recurObj->id) {
               self::processRecurPriceSet($recurObj->id, $lineSet);
             }
@@ -583,36 +577,41 @@ WHERE cc.id = " . $postParams['contribution_id'];
     }
     
     function editContribution($contributionId, $paymentInstrument, $status = 1, $noChanges = FALSE){
-        if( $paymentInstrument != 1 ) {
-            self::changeContributionStatus($contributionId, $paymentInstrument, $status, $noChanges);
-        }
+      if ($paymentInstrument == 1 && $noChanges) {
+        return FALSE;
+      }
+      self::changeContributionStatus($contributionId, $paymentInstrument, $status, $noChanges);
     }
 
     function changeContributionStatus($contributionId, $paymentInstrument = 1 , $status = 1, $noChanges = FALSE) { 
-        require_once 'CRM/Contribute/BAO/ContributionRecur.php';
-        require_once 'api/api.php';
-        $getContributionParams = array( 'contribution_id' => $contributionId,
-                                        'version' => 3 );
-        $contributionDetails = civicrm_api('contribution', 'get', $getContributionParams);
-        if( array_key_exists( 'values', $contributionDetails ) ){
-            $contributions = null;
-            $recurId[ 'contribution' ]     = $contributionDetails[ 'values' ][ $contributionId ]['contribution_recur_id'];
-            $timestamp     = date("H:i:s");
-            $currentDate   = date("Y-m-d");
-            $date          = explode('-', $currentDate);
-            $time          = explode(':', $timestamp);
-            $trxn_date     = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2] ) );
-            $recurParams   = array( 'id'                     => $recurId[ 'contribution' ],
-                                    'modified_date'          => $trxn_date,
-                                    'contribution_status_id' => $status );
-            $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, $recurId);
-            $contriParams = array( 
-              'version' => 3,
-              'id' => $contributionId,
-              'contribution_status_id' => ($noChanges && $contributionDetails['values'][$contributionId]['contribution_status_id'] != 1) ? 3 : $status,
-            );
-            $result = civicrm_api('contribution', 'create', $contriParams);
-        }        
+      require_once 'CRM/Contribute/BAO/ContributionRecur.php';
+      require_once 'api/api.php';
+      $getContributionParams = array( 
+        'contribution_id' => $contributionId,
+        'version' => 3 
+      );
+      $contributionDetails = civicrm_api('contribution', 'get', $getContributionParams);
+      if(array_key_exists('values', $contributionDetails)) {
+        $contributions = null;
+        $recurId[ 'contribution' ] = $contributionDetails['values'][$contributionId]['contribution_recur_id'];
+        $timestamp = date("H:i:s");
+        $currentDate = date("Y-m-d");
+        $date = explode('-', $currentDate);
+        $time = explode(':', $timestamp);
+        $trxn_date = CRM_Utils_Date::format(array('Y'=>$date[0], 'M'=>$date[1], 'd'=>$date[2], 'H'=>$time[0], 'i'=>$time[1], 's'=>$time[2]));
+        $recurParams   = array( 
+          'id' => $recurId['contribution'],
+          'modified_date' => $trxn_date,
+          'contribution_status_id' => $status 
+        );
+        $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, $recurId);
+        $contriParams = array( 
+          'version' => 3,
+          'id' => $contributionId,
+          'contribution_status_id' => ($noChanges && $contributionDetails['values'][$contributionId]['contribution_status_id'] != 1) ? 3 : $status,
+        );
+        $result = civicrm_api('contribution', 'create', $contriParams);
+      }        
     }
     public function deleteDonor( ) {
         require_once "CRM/Core/PseudoConstant.php";
