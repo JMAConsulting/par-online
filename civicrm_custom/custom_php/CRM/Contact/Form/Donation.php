@@ -448,7 +448,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisParams[ 'amount' ] = $fieldDetails['amount'];
         $monerisParams[ 'is_recur' ] = 1;
         $monerisParams[ 'frequency_interval' ] = 1;
-        $monerisParams[ 'frequency_unit' ] = 'day';
+        $monerisParams[ 'frequency_unit' ] = $fieldDetails['frequency_unit'];
         $monerisParams[ 'installments' ] = 90010;
         if (empty($fieldDetails['contribution_id'])) {
           $monerisParams[ 'type' ] = 'purchase';
