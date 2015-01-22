@@ -336,6 +336,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
       elseif ($fieldDetails['contribution_id']) {
         if ($fieldDetails['payment_instrument'] == 1) {
           //ADD code to change the status
+          $recurId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails['contribution_id'], 'contribution_recur_id');
+          $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
+          if ($invoice) {
+            $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'amount');
+            $results = self::stopOnHoldPayment($invoice, $fieldDetails['payment_status'], $moneris, $amount);
+            //TODO: show errors when error returned from moneris and exit;
+          }
         }
         self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], $fieldDetails['payment_status']);
         $fieldDetails['amount'] = ($fieldDetails['payment_status']) == 1 ? '0.00' : CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails[ 'contribution_id' ], 'total_amount');
@@ -395,8 +402,10 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisParams['email'] = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
       }
       $invoice = NULL;
+      // TODO:get the previous instrument id
+      $previousInstrument = 1;
       if ($fieldDetails['payment_instrument'] == 1) {
-        if (empty($fieldDetails['contribution_id'])) {
+        if (empty($fieldDetails['contribution_id']) || $previousInstrument != 1) {
           $invoice = md5(uniqid(rand(), true));
         }
         else {
@@ -448,7 +457,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisParams['frequency_interval'] = 1;
         $monerisParams['frequency_unit'] = $fieldDetails['frequency_unit'];
         $monerisParams['installments'] = 90010;
-        if (empty($fieldDetails['contribution_id'])) {
+        if (empty($fieldDetails['contribution_id']) || $previousInstrument != 1) {
           $monerisParams['type'] = 'purchase';
         }
         else {
@@ -545,10 +554,19 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $params['net_amount'] = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a');
         $params['source'] = 'Moneris';
         $monerisResult = $moneris->doDirectPayment($monerisParams);
-        if ( $monerisResult['trxn_result_code'] == '27') {
-          $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
+        //TODO: show errors when error returned from moneris and exit;
+        if (in_array($monerisResult['trxn_result_code'], array(1, 27))) {
+          $recurId = array();
+          if ($monerisResult['trxn_result_code'] == 1) {
+            $recurParams['id'] = $recurId['contribution'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $fieldDetails['contribution_id'], 'contribution_recur_id');
+            $params['id'] = $fieldDetails['contribution_id'];
+            require_once 'CRM/Price/BAO/LineItem.php';
+            CRM_Price_BAO_LineItem::deleteLineItems($params['id'], 'civicrm_contribution');
+            CRM_Price_BAO_LineItem::deleteLineItems($recurParams['id'], 'civicrm_contribution_recur');
+          }
+          $recurObj = CRM_Contribute_BAO_ContributionRecur::add($recurParams, $recurId);
           $params['contribution_recur_id'] = $recurObj->id;
-          $result = civicrm_api('contribution','create',$params);
+          $result = civicrm_api('contribution', 'create', $params);
           if (array_key_exists('id', $result ) && $fieldDetails['pricesetid']) {
             require_once 'CRM/Contribute/Form/AdditionalInfo.php';
             $lineSet[$fieldDetails['pricesetid']] = $lineitem;
@@ -559,7 +577,6 @@ WHERE cc.id = " . $postParams['contribution_id'];
           }
         }
       }
-        
       $logParams = array(
         'primary_contact_id' => $_GET['cid'], 
         'nsf' => $postParams['nsf'],
@@ -798,4 +815,15 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       return NULL;
     }   
+    
+    function stopOnHoldPayment($invoice, $statusId, $moneris, $amount) {
+      $monerisParams = array (
+        'invoiceID' => $invoice,
+        'type' => 'recur_update',
+        'payment_status' => $statusId,
+        'currencyID' => 'CAD',
+        'amount' => $amount,
+      );
+      return $moneris->doDirectPayment($monerisParams);
+    }
 }
