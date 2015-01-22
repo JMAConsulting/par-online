@@ -340,7 +340,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
           $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
           if ($invoice) {
             $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'amount');
-            $results = self::stopOnHoldPayment($invoice, $fieldDetails['payment_status'], $moneris, $amount);
+            $results = self::stopOnHoldPayment($invoice, $fieldDetails['payment_status'], $amount, $moneris);
             //TODO: show errors when error returned from moneris and exit;
           }
         }
@@ -816,7 +816,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
       return NULL;
     }   
     
-    function stopOnHoldPayment($invoice, $statusId, $moneris, $amount) {
+    function stopOnHoldPayment($invoice, $statusId, $amount, $moneris = NULL) {
       $monerisParams = array (
         'invoiceID' => $invoice,
         'type' => 'recur_update',
@@ -824,6 +824,12 @@ WHERE cc.id = " . $postParams['contribution_id'];
         'currencyID' => 'CAD',
         'amount' => $amount,
       );
+      
+      if (!$moneris) {
+        $mode = IS_TEST_PAYMENT ? 'test' : 'live';
+        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment(10, $mode);
+        $moneris =& CRM_Core_Payment_Moneris::singleton($mode, $paymentProcessorDetails);
+      }
       return $moneris->doDirectPayment($monerisParams);
     }
 }
