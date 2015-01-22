@@ -52,19 +52,9 @@
      <access_arguments>access CiviCRM</access_arguments> 
   </item>
   <item>
-     <path>civicrm/contact/hold/donation</path>
-     <page_callback>CRM_Contact_Form_Donation::holdDonation</page_callback> 
+     <path>civicrm/contact/donation/changestatus</path>
+     <page_callback>CRM_Contact_Form_Donation::changeContriStatus</page_callback> 
      <access_arguments>access CiviCRM</access_arguments> 
-  </item>
-  <item>
-     <path>civicrm/contact/stop/donation</path>
-     <page_callback>CRM_Contact_Form_Donation::stopDonation</page_callback> 
-     <access_arguments>access CiviCRM</access_arguments>
-  </item>
-  <item>
-     <path>civicrm/contact/active/donation</path>
-     <page_callback>CRM_Contact_Form_Donation::activeDonation</page_callback> 
-     <access_arguments>access CiviCRM</access_arguments>
   </item>
   <item>
      <title>Service Charge Rates</title>

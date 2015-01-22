@@ -739,13 +739,13 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
           $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
         }        
         $smarty->_tpl_vars['activityTypes']['hold'] = 'Hold All Donations for Next Cycle';
-        $smarty->_tpl_vars['urls']['hold'] =  CRM_Utils_System::url('civicrm/contact/hold/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+        $smarty->_tpl_vars['urls']['hold'] =  CRM_Utils_System::url('civicrm/contact/donation/changestatus', "reset=1&mode=onhold&cid=".$_SESSION['CiviCRM']['view.id']);
 
         $smarty->_tpl_vars['activityTypes']['active'] = 'Remove Holds and Activate All Donations';
-        $smarty->_tpl_vars['urls']['active'] =  CRM_Utils_System::url('civicrm/contact/active/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+        $smarty->_tpl_vars['urls']['active'] =  CRM_Utils_System::url('civicrm/contact/donation/changestatus', "reset=1&mode=inprogress&cid=".$_SESSION['CiviCRM']['view.id']);
 
         $smarty->_tpl_vars['activityTypes']['stop'] = 'Stop All Donations Permanently';
-        $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/stop/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']); 
+        $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/donation/changestatus', "reset=1&mode=stop&cid=".$_SESSION['CiviCRM']['view.id']); 
 
         // UCCPAR-414
         $relId = CRM_Core_DAO::singleValueQuery('SELECT id FROM `civicrm_relationship`

@@ -649,101 +649,6 @@ WHERE cc.id = " . $postParams['contribution_id'];
         }
     } 
     
-    public function holdDonation( ) {
-        require_once 'CRM/Contribute/BAO/ContributionRecur.php';
-        $getContributionParams = array( 'version' => 3,
-                                        'contact_id'       => $_GET['cid'],
-                                        'contribution_status_id'  => '5');
-        $contributionResult = civicrm_api( 'contribution', 'get', $getContributionParams );
-        if ( $contributionResult['values'] ) {
-            foreach ( $contributionResult['values'] as $contributionKey => $contributionValues ) {
-                $updateParams = array( 'version' => 3,
-                                       'id'       => $contributionKey,
-                                       'contact_id' => $contributionValues['contact_id'],
-                                       'contribution_type_id'    => $contributionValues['contribution_type_id'],
-                                       'contribution_recur_id'   => $contributionValues['contribution_recur_id'],
-                                       'contribution_status_id'  => 7 );
-                $contributionResult = civicrm_api( 'contribution', 'create', $updateParams );
-                // update recurring contribution table status ///
-                $updateParam = array( 'id' => $contributionValues['contribution_recur_id'],  
-                                      'contact_id' => $_GET['cid'],  
-                                      'contribution_type_id' => $contributionValues['contribution_type_id'],
-                                      'contribution_status_id' => 7 );
-                $ids = array( 'contribution' => $contributionValues['contribution_recur_id'] );
-                $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
-                $recurResult = $updateContribute->add( $updateParam, $ids );
-            }
-            CRM_Core_Session::setStatus( 'All In progress recurring contributions set to On hold successfully' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
-        } else {
-            CRM_Core_Session::setStatus( 'No In progress recurring contributions available' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
-        }
-    } 
-    
-    public function stopDonation( ) {
-        require_once 'CRM/Contribute/BAO/ContributionRecur.php';
-        $getContributionParams = array( 'version' => 3,
-                                        'contact_id'       => $_GET['cid'],
-                                        'contribution_status_id'  => '5');
-        $contributionResult = civicrm_api( 'contribution', 'get', $getContributionParams );
-        if ( $contributionResult['values'] ) {
-            foreach ( $contributionResult['values'] as $contributionKey => $contributionValues ) {
-                $updateParams = array( 'version' => 3,
-                                       'id'       => $contributionKey,
-                                       'contact_id' => $contributionValues['contact_id'],
-                                       'contribution_type_id'    => $contributionValues['contribution_type_id'],
-                                       'contribution_recur_id'   => $contributionValues['contribution_recur_id'],
-                                       'contribution_status_id'  => 1 );
-                $contributionResult = civicrm_api( 'contribution', 'create', $updateParams );
-                // update recurring contribution table status ///
-                $updateParam = array( 'id' => $contributionValues['contribution_recur_id'],  
-                                      'contact_id' => $_GET['cid'],  
-                                      'contribution_type_id' => $contributionValues['contribution_type_id'],
-                                      'contribution_status_id' => 1 );
-                $ids = array( 'contribution' => $contributionValues['contribution_recur_id'] );
-                $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
-                $recurResult = $updateContribute->add( $updateParam, $ids );
-            }
-            CRM_Core_Session::setStatus( 'All In progress recurring contributions set to Stopped successfully' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) ); 
-        } else {
-            CRM_Core_Session::setStatus( 'No In progress recurring contributions available' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
-        }
-    } 
-    
-    public function activeDonation( ) {
-        require_once 'CRM/Contribute/BAO/ContributionRecur.php';
-        $getContributionParams = array( 'version' => 3,
-                                        'contact_id'       => $_GET['cid'],
-                                        'contribution_status_id'  => 7);
-        $contributionResult = civicrm_api( 'contribution', 'get', $getContributionParams );
-        if ( $contributionResult['values'] ) {
-            foreach ( $contributionResult['values'] as $contributionKey => $contributionValues ) {
-                $updateParams = array( 'version' => 3,
-                                       'id'       => $contributionKey,
-                                       'contact_id' => $contributionValues['contact_id'],
-                                       'contribution_type_id'    => $contributionValues['contribution_type_id'],
-                                       'contribution_recur_id'   => $contributionValues['contribution_recur_id'],
-                                       'contribution_status_id'  => 5 );
-                $contributionResult = civicrm_api( 'contribution', 'create', $updateParams );
-                // update recurring contribution table status ///
-                $updateParam = array( 'id' => $contributionValues['contribution_recur_id'],  
-                                      'contact_id' => $_GET['cid'],  
-                                      'contribution_type_id' => $contributionValues['contribution_type_id'],
-                                      'contribution_status_id' => 5 );
-                $ids = array( 'contribution' => $contributionValues['contribution_recur_id'] );
-                $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
-                $recurResult = $updateContribute->add( $updateParam, $ids );
-            } 
-            CRM_Core_Session::setStatus( 'All On Hold recurring contributions set to In Progress successfully' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) ); 
-        } else {
-            CRM_Core_Session::setStatus( 'No On hold recurring contributions available' );
-            CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
-        }
-    } 
     function processRecurPriceSet($contributionRecurId, $lineItem) {
       if (!$contributionRecurId || !is_array($lineItem)
           || CRM_Utils_system::isNull($lineItem)
@@ -832,4 +737,72 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       return $moneris->doDirectPayment($monerisParams);
     }
+
+    function changeContriStatus() {
+      require_once 'CRM/Contribute/BAO/ContributionRecur.php';
+      switch ($_GET['mode']) {
+        case 'onhold':
+          $statuscheck = 5;
+          $updateStatus = 7;
+          $fromStatusName = 'In Progress';
+          $tostatusName = 'On Hold';
+          break;
+        case 'inprogress':
+          $statuscheck = 7;
+          $updateStatus = 5;
+          $fromStatusName = 'On Hold';
+          $tostatusName = 'In Progress';
+          break;
+        case 'stop':
+          $statuscheck = 5;
+          $updateStatus = 1;
+          $fromStatusName = 'In Progress';
+          $tostatusName = 'Stopped';
+          break;
+      }
+      
+      $getContributionParams = array( 
+        'version' => 3,
+        'contact_id' => $_GET['cid'],
+        'contribution_status_id'  => $statuscheck
+      );
+      $contributionResult = civicrm_api('contribution', 'get', $getContributionParams);
+      if ($contributionResult['values']) {
+        foreach ($contributionResult['values'] as $contributionKey => $contributionValues) {
+          if ($contributionValues['payment_instrument'] != 'Direct Debit') {
+            $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'invoice_id');
+            if ($invoice) {
+              $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'amount');        
+              $result = self::stopOnHoldPayment($invoice, $updateStatus, $amount);
+              //TODO: print error message if any and exit;
+            }
+          }
+          $updateParams = array( 
+            'version' => 3,
+            'id' => $contributionKey,
+            'contact_id' => $contributionValues['contact_id'],
+            'contribution_type_id' => $contributionValues['contribution_type_id'],
+            'contribution_recur_id' => $contributionValues['contribution_recur_id'],
+            'contribution_status_id' => $updateStatus
+          );
+          $contributionResult = civicrm_api('contribution', 'create', $updateParams);
+          // update recurring contribution table status ///
+          $updateParam = array( 
+            'id' => $contributionValues['contribution_recur_id'],  
+            'contact_id' => $_GET['cid'],  
+            'contribution_type_id' => $contributionValues['contribution_type_id'],
+            'contribution_status_id' => $updateStatus
+          );
+          $ids = array('contribution' => $contributionValues['contribution_recur_id']);
+          $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
+          $recurResult = $updateContribute->add($updateParam, $ids);
+        } 
+        CRM_Core_Session::setStatus("All {$fromStatusName} recurring contributions set to {$tostatusName} successfully.");
+        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid'])); 
+      } 
+      else {
+        CRM_Core_Session::setStatus("No {$fromStatusName} recurring contributions available.");
+        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid']));
+      }      
+    }    
 }
