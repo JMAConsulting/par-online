@@ -1820,6 +1820,15 @@ WHERE  clpd.primary_contact_id = {$objectId}";
             CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], array(1 => $lineItems));
           }
         }
+        else {
+          if ($logs->payment_instrument_id == 1) {
+            if ($logs->invoice_id) {      
+              require_once 'CRM/Contact/Form/Donation.php';
+              $result = CRM_Contact_Form_Donation::stopOnHoldPayment($logs->invoice_id, 1, $logs->amount);
+              //TODO: print error message if any and exit;
+            }
+          }
+        }
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "') $extraInsert;";
         CRM_Core_DAO::executeQuery($query);
       }

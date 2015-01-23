@@ -732,6 +732,8 @@ WHERE cc.id = " . $postParams['contribution_id'];
       
       if (!$moneris) {
         $mode = IS_TEST_PAYMENT ? 'test' : 'live';
+        require_once 'CRM/Core/BAO/PaymentProcessor.php';
+        require_once 'CRM/Core/Payment/Moneris.php';
         $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment(10, $mode);
         $moneris =& CRM_Core_Payment_Moneris::singleton($mode, $paymentProcessorDetails);
       }
