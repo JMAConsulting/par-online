@@ -113,6 +113,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add('text', 'file_id', ts('Last File Number'), NULL, TRUE)->freeze();
         $this->add( 'text', "contribution_type", null, array( 'class' => 'contribution_type' ) );
         $this->add( 'hidden', "old_status", null, array( 'class' => 'old_status', 'id' => 'old_status' ) );
+        $this->add( 'hidden', "old_instrument", null, array( 'class' => 'old_instrument', 'id' => 'old_instrument' ) );
         $this->add( 'date', "cc_expire", null, array( 'addEmptyOption'    => 1, 
                                                                   'emptyOptionText'   => '- select -',
                                                                   'emptyOptionValue'  => null,
@@ -158,7 +159,8 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             $default['account'] = $dao->par_account_number_13;
         }
         foreach( $this->_recurringDetails as $recurKey => $recurValue ){
-            $default['payment_instrument'] = $recurValue['payment_instrument_id'];
+            $default['old_instrument'] = 
+              $default['payment_instrument'] = $recurValue['payment_instrument_id'];
             $default['payment_status'] = $recurValue[ 'contribution_status_id' ];
             $default['old_status'] = $recurValue[ 'contribution_status_id' ];
             if (!in_array($recurValue['installment'][0][$bankDetails['type']], array(VISA, MASTER_CARD))) {
@@ -402,8 +404,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisParams['email'] = CRM_Utils_Array::value('email', $emailResult['values'][$emailResult['id']]);
       }
       $invoice = NULL;
-      // TODO:get the previous instrument id
-      $previousInstrument = 1;
+      $previousInstrument = $fieldDetails['old_instrument'];
       if ($fieldDetails['payment_instrument'] == 1) {
         if (empty($fieldDetails['contribution_id']) || $previousInstrument != 1) {
           $invoice = md5(uniqid(rand(), true));

@@ -140,6 +140,7 @@ function prepareContributionParams(){
     data = data+'payment_status='+cj('#payment_status').val()+'&';
     data = data+'frequency_unit='+cj('#frequency_unit').val()+'&';
     data = data+'old_status='+cj('#old_status').val()+'&';
+    data = data+'old_instrument='+cj('#old_instrument').val()+'&';
     data = data+'pricesetid='+cj('#pricesetid').val()+'&';
     data = data+'nsf='+cj('input[name=nsf]:checked').val()+'&';
     data = data+'file_id='+cj('#file_id').val()+'&';
