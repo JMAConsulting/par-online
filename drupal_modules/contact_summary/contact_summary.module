@@ -1589,6 +1589,20 @@ function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef 
     }
           
     if ($objectName == 'Individual' && $op == 'trash') {
+      
+      $contriRecur = CRM_Core_DAO::executeQuery('SELECT amount, invoice_id, payment_instrument_id FROM civicrm_contribution_recur WHERE contribution_status_id IN (5, 7) AND contact_id = ' . $objectId);
+      while ($contriRecur->fetch()) {
+        if ($contriRecur->payment_instrument_id == 1 && $contriRecur->invoice_id) {
+          require_once 'CRM/Contact/Form/Donation.php';
+          $result = CRM_Contact_Form_Donation::stopOnHoldPayment($contriRecur->invoice_id, 1, $contriRecur->amount);
+          if (is_a($result, 'CRM_Core_Error')) {
+            CRM_Core_Session::setStatus(ts("Termination of recurring payment for {$objectRef->display_name} has been declined by Moneris, therefore this donor cannot be deleted."));
+            CRM_Core_DAO::executeQuery('UPDATE civicrm_contact SET is_deleted = 0 WHERE id = ' . $objectId);
+            return FALSE;
+          }
+        }
+      }
+
       $queryParms = array();
       $relId = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_relationship WHERE is_active = 1 AND relationship_type_id IN (' . MEMBER_OF_HOUSEHOLD . ',' . HEAD_OF_HOUSEHOLD . ') AND 
 contact_id_a = ' . $objectId);
@@ -1723,7 +1737,7 @@ WHERE  clpd.primary_contact_id = {$objectId}";
 
         //primary is deleted, transfer recur to secondary
         $extraInsert = '';
-        if ($dao->N) {
+        if ($dao->N && $logs->payment_instrument_id != 1) {
           $arrayToSerialize = array(
             'Status' => CRM_Contribute_PseudoConstant::contributionStatus($logs->contribution_status_id),
             'Payment Instrument' => $allInstruments[$logs->payment_instrument_id],
@@ -1764,8 +1778,6 @@ WHERE  clpd.primary_contact_id = {$objectId}";
             'contribution_status_id' => $logs->contribution_status_id,
             'contribution_type_id'   => $logs->contribution_type_id,
             'payment_processor_id'   => $logs->payment_processor_id,
-            'invoice_id'             => $logs->invoice_id,
-            'trxn_id'                => $logs->trxn_id,
             'installments'           => 90010
           );
           require_once 'CRM/Contribute/BAO/ContributionRecur.php';
@@ -1820,15 +1832,7 @@ WHERE  clpd.primary_contact_id = {$objectId}";
             CRM_Contribute_Form_AdditionalInfo::processPriceSet($result['id'], array(1 => $lineItems));
           }
         }
-        else {
-          if ($logs->payment_instrument_id == 1) {
-            if ($logs->invoice_id) {      
-              require_once 'CRM/Contact/Form/Donation.php';
-              $result = CRM_Contact_Form_Donation::stopOnHoldPayment($logs->invoice_id, 1, $logs->amount);
-              //TODO: print error message if any and exit;
-            }
-          }
-        }
+        
         $query = "INSERT INTO civicrm_value_change_log_18 (entity_id,  modified_by_49, modified_date_50, change_log_data_51) values ($objectId, '" . CRM_Core_Session::singleton()->get('userID') . "', now(), '" . serialize($newData) . "') $extraInsert;";
         CRM_Core_DAO::executeQuery($query);
       }
