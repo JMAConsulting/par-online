@@ -333,7 +333,11 @@ WHERE cc.id = " . $postParams['contribution_id'];
       $successfullDonation = 'Donations changed successfully.';
         
       if($fieldDetails['contribution_id'] && $fieldDetails['old_status'] == 5 && $fieldDetails['payment_status'] == 5) {
-        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], 1, TRUE);
+        $noChanges = TRUE;
+        if ($fieldDetails['payment_instrument'] == 1 && $fieldDetails['old_instrument'] != 1) {
+          $noChanges = FALSE;
+        }
+        self::editContribution($fieldDetails['contribution_id'], $fieldDetails['payment_instrument'], 1, $noChanges);
       }
       elseif ($fieldDetails['contribution_id']) {
         if ($fieldDetails['payment_instrument'] == 1) {
@@ -364,6 +368,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
         CRM_Core_Session::setStatus(ts($successfullDonation));
         echo ts($successfullDonation);
         CRM_Utils_System::civiExit();
+      }
+      elseif (!$fieldDetails['contribution_id']) {
+        $rid = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contribution_recur WHERE payment_intrument_id <> 1 AND contribution_status_id IN (5, 7) AND contact_id = {$_GET['cid']} ORDER BY DESC LIMIT 1");
+        if ($rid) {
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET contribution_status_id = 1,
+            modified_date = now() WHERE id = {$rid}");
+        }
       }
       
       $accountDetails = getAccountColumns();
@@ -637,7 +648,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
           'contribution_status_id' => ($noChanges && $contributionDetails['values'][$contributionId]['contribution_status_id'] != 1) ? 3 : $status,
         );
         $result = civicrm_api('contribution', 'create', $contriParams);
-      }        
+      }  
     }
     public function deleteDonor( ) {
         require_once "CRM/Core/PseudoConstant.php";
