@@ -97,4 +97,7 @@ define('SYSTEM_ADMIN', 9);
 define('MASTER_CARD', 903);
 define('VISA', 901);
 define('MAX_FILE_NUMBER', 2000000);
-define('IS_TEST_PAYMENT', 1);
+define('IS_TEST_PAYMENT', 0);
+//define('IS_TEST_PAYMENT', 1); // for test payments
+define('PAYMENT_PROCESSOR_ID', 9);
+//define('PAYMENT_PROCESSOR_ID', 10); // for test payment processor

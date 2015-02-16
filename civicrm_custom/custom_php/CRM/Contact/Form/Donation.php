@@ -302,7 +302,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $_GET['cid'] = $postParams['monthly_contact_id'];
       }
       $postParams['cid'] = $_GET['cid'];
-      $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment( 10, $mode);
+      $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment(PAYMENT_PROCESSOR_ID, $mode);
       $moneris =& CRM_Core_Payment_Moneris::singleton($mode, $paymentProcessorDetails);
       foreach ($postParams as $postKey => $postValue) {
         $fieldDetails[ $postKey ] = $postValue;
@@ -743,7 +743,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $mode = IS_TEST_PAYMENT ? 'test' : 'live';
         require_once 'CRM/Core/BAO/PaymentProcessor.php';
         require_once 'CRM/Core/Payment/Moneris.php';
-        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment(10, $mode);
+        $paymentProcessorDetails = CRM_Core_BAO_PaymentProcessor::getPayment(PAYMENT_PROCESSOR_ID, $mode);
         $moneris =& CRM_Core_Payment_Moneris::singleton($mode, $paymentProcessorDetails);
       }
       return $moneris->doDirectPayment($monerisParams);
