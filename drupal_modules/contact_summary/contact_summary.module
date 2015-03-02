@@ -417,9 +417,8 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     $form->setVar('_componentIds', $form->_contactIds);
   }
   
-  if ($form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
+  if ($formName == 'CRM_Profile_Form_Edit' && $form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
     $form->_hid = CRM_Utils_Request::retrieve('hid', 'Positive', $form);
-    
     if (empty($form->_hid)) {
       CRM_Core_Error::fatal(ts('Could not retrive valid Household id'));
     }
@@ -429,6 +428,17 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     $externalIdentifier = $externalIdentifier[1];
     //get the next incremented value for external identifier
     $form->setDefaults(array('external_identifier' => $externalIdentifier));
+    
+    $title = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_UFGroup', $form->getVar('_gid'), 'title');
+    
+    $hName = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalIdentifier, 'household_name', 'external_identifier');
+    if (empty($hName)) {
+      $hName = CRM_Contact_BAO_Contact::displayName($form->_hid);
+    }
+    
+    
+    $title .= ' ' . $hName . ' Household';
+    CRM_Utils_System::setTitle($title);
   }
   
     if ($form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID )  {
