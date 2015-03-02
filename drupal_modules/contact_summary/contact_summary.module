@@ -966,6 +966,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
 function contact_summary_civicrm_pre( $op, $objectName, $objectId, &$objectRef ) {
   if ($objectName == 'Profile' && $op == 'create' && $objectRef['uf_group_id'] == HOUSEHOLD_PROFILE_ID) {
     $objectRef['external_identifier'] = getExternalIdentifier($objectRef['external_identifier']);
+    $objectRef['custom_48'] = 1;
   }
   // UCCPAR-478
   if ($objectName == 'Profile' && $objectRef['uf_group_id'] == CONTACT_PROFILE_ID
@@ -1299,6 +1300,55 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
 }
 
 function contact_summary_civicrm_postProcess( $formName, &$form ){
+  if ($formName == 'CRM_Profile_Form_Edit' 
+    && in_array($form->getVar('_gid'), array(CONTACT_PROFILE_ID, HOUSEHOLD_PROFILE_ID))) {
+    $externalID = CRM_Utils_Array::value('external_identifier', $form->_submitValues);
+    if (!$externalID) {
+      $externalID = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $form->getVar('_id'), 'external_identifier');
+      $externalID = str_replace('D-', '', $externalID);
+    }
+    $query = "SELECT first_name, last_name FROM civicrm_contact WHERE is_deleted = 0 AND external_identifier LIKE 'D-{$externalID}%' ";
+    require_once('CRM/Contact/Form/Task/Household.php');
+    $hid = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalID, 'id', 'external_identifier');
+    $hid = CRM_Contact_Form_Task_Household::createHouseHoldName($query, $hid, 'D-' . $externalID);
+
+    if ($form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
+      $params = array( 
+        'version' => 3,
+        'contact_id_a' => $form->getVar('_id'),
+        'relationship_type_id' => MEMBER_OF_HOUSEHOLD,
+        'is_active' => 1,
+        'start_date' => date('Ymd'),
+        'contact_id_b' => $hid,
+      );
+      civicrm_api('relationship', 'create', $params);
+      
+      
+      $params = array( 
+        'version' => 3,
+        'contact_id_a' => $form->getVar('_hid'),
+        'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+        'is_active' => 1,
+      );
+      
+      $rel = civicrm_api('relationship', 'get', $params);
+      
+      if (empty($rel['count'])) {
+        return FALSE;
+      }
+      $rel = reset($rel['values']);
+      $params = array( 
+        'version' => 3,
+        'contact_id_a' => $form->getVar('_id'),
+        'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+        'is_active' => 1,
+        'start_date' => date('Ymd'),
+        'contact_id_b' => $rel['contact_id_b'],
+      );
+      civicrm_api('relationship', 'create', $params);
+    }    
+  }
+
     if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){      
       $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
       $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );

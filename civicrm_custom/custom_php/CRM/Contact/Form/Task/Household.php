@@ -235,6 +235,9 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
       return FALSE;
     }
     $contactDAO = CRM_Core_DAO::executeQuery($query);
+    if ($contactDAO->N < 2) {
+      return NULL;
+    }
     $name = NULL;
     $records = array();
     while ($contactDAO->fetch()) {
