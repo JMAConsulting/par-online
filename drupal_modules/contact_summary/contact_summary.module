@@ -417,6 +417,20 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     $form->setVar('_componentIds', $form->_contactIds);
   }
   
+  if ($form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
+    $form->_hid = CRM_Utils_Request::retrieve('hid', 'Positive', $form);
+    
+    if (empty($form->_hid)) {
+      CRM_Core_Error::fatal(ts('Could not retrive valid Household id'));
+    }
+    
+    $externalIdentifier = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $form->_hid, 'external_identifier');
+    $externalIdentifier = explode('-', $externalIdentifier);
+    $externalIdentifier = $externalIdentifier[1];
+    //get the next incremented value for external identifier
+    $form->setDefaults(array('external_identifier' => $externalIdentifier));
+  }
+  
     if ($form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID )  {
         $form->add( 'hidden', "gid",  $form->getVar( '_gid' ));
         require_once 'CRM/Contribute/DAO/ParServiceFees.php';
@@ -746,6 +760,11 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
 
         $smarty->_tpl_vars['activityTypes']['stop'] = 'Stop All Donations Permanently';
         $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/donation/changestatus', "reset=1&mode=stop&cid=".$_SESSION['CiviCRM']['view.id']); 
+        
+        if ($contact_type == 'Individual') {
+          $smarty->_tpl_vars['activityTypes']['newhousehold'] = 'Add New Donor / Member /Supporter to Household';
+          $smarty->_tpl_vars['urls']['newhousehold'] =  CRM_Utils_System::url('civicrm/profile/create', 'reset=1&gid=' .HOUSEHOLD_PROFILE_ID . '&hid='.$_SESSION['CiviCRM']['view.id']); 
+        }
 
         // UCCPAR-414
         $relId = CRM_Core_DAO::singleValueQuery('SELECT id FROM `civicrm_relationship`
@@ -945,7 +964,9 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
 }
 
 function contact_summary_civicrm_pre( $op, $objectName, $objectId, &$objectRef ) {
-
+  if ($objectName == 'Profile' && $op == 'create' && $objectRef['uf_group_id'] == HOUSEHOLD_PROFILE_ID) {
+    $objectRef['external_identifier'] = getExternalIdentifier($objectRef['external_identifier']);
+  }
   // UCCPAR-478
   if ($objectName == 'Profile' && $objectRef['uf_group_id'] == CONTACT_PROFILE_ID
     && !in_array($_SESSION[ 'CiviCRM' ][ 'userID' ], getSysAdmins())) {
@@ -2175,4 +2196,10 @@ function getLogDetails($select, $condition) {
   $dao = CRM_Core_DAO::executeQuery($sql);
   $dao->fetch();
   return $dao;
+}
+
+function getExternalIdentifier ($externalId) {
+  $sql = "SELECT max(cast(SUBSTRING_INDEX(REPLACE(external_identifier, 'D-{$externalId}', ''),'-',-1) as unsigned)) + 1 ext FROM civicrm_contact where external_identifier LIKE 'D-{$externalId}%'";
+  $externalIdentifier = "D-{$externalId}-" . CRM_Core_DAO::singleValueQuery($sql);
+  return $externalIdentifier;
 }
