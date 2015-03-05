@@ -1320,9 +1320,42 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
     $query = "SELECT first_name, last_name FROM civicrm_contact WHERE is_deleted = 0 AND external_identifier LIKE 'D-{$externalID}%' ";
     require_once('CRM/Contact/Form/Task/Household.php');
     $hid = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalID, 'id', 'external_identifier');
+    if ($hid) {
+      CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $hid, 'is_deleted', 0);
+    }
     $hid = CRM_Contact_Form_Task_Household::createHouseHoldName($query, $hid, 'D-' . $externalID);
 
+
     if ($form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
+      $params = array( 
+        'version' => 3,
+        'relationship_type_id' => HEAD_OF_HOUSEHOLD,
+        'contact_id_b' => $hid,
+      );
+      
+      $rel = civicrm_api('relationship', 'get', $params);
+      
+      if (empty($rel['count'])) {
+        $params = array( 
+          'version' => 3,
+          'contact_id_a' => $form->getVar('_hid'),
+          'relationship_type_id' => HEAD_OF_HOUSEHOLD,
+          'is_active' => 1,
+          'start_date' => date('Ymd'),
+          'contact_id_b' => $hid,
+        );
+        civicrm_api('relationship', 'create', $params);
+      }
+      else {
+        $params = array( 
+          'version' => 3,
+          'id' => $rel['id'],
+          'is_active' => 1,
+          'end_date' => NULL,
+        );
+        civicrm_api('relationship', 'create', $params);        
+      }
+      
       $params = array( 
         'version' => 3,
         'contact_id_a' => $form->getVar('_id'),
