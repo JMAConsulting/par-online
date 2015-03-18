@@ -370,7 +370,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         CRM_Utils_System::civiExit();
       }
       elseif (!$fieldDetails['contribution_id']) {
-        $rid = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contribution_recur WHERE payment_intrument_id <> 1 AND contribution_status_id IN (5, 7) AND contact_id = {$_GET['cid']} ORDER BY DESC LIMIT 1");
+        $rid = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contribution_recur WHERE payment_instrument_id <> 1 AND contribution_status_id IN (5, 7) AND contact_id = {$_GET['cid']} ORDER BY id DESC LIMIT 1");
         if ($rid) {
           CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET contribution_status_id = 1,
             modified_date = now() WHERE id = {$rid}");
