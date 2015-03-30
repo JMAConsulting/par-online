@@ -348,8 +348,8 @@ WHERE cc.id = " . $postParams['contribution_id'];
             $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurId, 'amount');
             $results = self::stopOnHoldPayment($invoice, $fieldDetails['payment_status'], $amount, $moneris);
             if (is_a($results, 'CRM_Core_Error')) {
-              CRM_Core_Session::setStatus(ts('Credit card processor has declined to update this recurring payment.<br>Error Message: ' . $results->getMessages($results)));
-              echo ts('Credit card processor has declined to update this recurring payment.<br>Error Message: ' . $results->getMessages($results));
+              CRM_Core_Session::setStatus(ts('Credit card processor has declined to update this recurring payment with the following Error message: ' . $results->getMessages($results)));
+              echo ts('Credit card processor has declined to update this recurring payment with the following Error message: ' . $results->getMessages($results));
               CRM_Utils_System::civiExit();
             }
           }
@@ -572,8 +572,8 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $monerisResult = $moneris->doDirectPayment($monerisParams);
         CRM_Core_Error::debug_var( '$monerisResult', $monerisResult->getMessages($monerisResult) );
         if (is_a($monerisResult, 'CRM_Core_Error')) {
-          CRM_Core_Session::setStatus(ts('Credit card processor has declined to create/update this recurring payment. <br>Error Message: ' . $monerisResult->getMessages($monerisResult)));
-          echo ts('Credit card processor has declined to create/update this recurring payment. <br>Error Message: ' . $monerisResult->getMessages($monerisResult));
+          CRM_Core_Session::setStatus(ts('Credit card processor has declined to create/update this recurring payment  with the following Error message: ' . $monerisResult->getMessages($monerisResult)));
+          echo ts('Credit card processor has declined to create/update this recurring payment with the following Error message: ' . $monerisResult->getMessages($monerisResult));
           CRM_Utils_System::civiExit();
         }
         if (in_array($monerisResult['trxn_result_code'], array(1, 27))) {
@@ -798,7 +798,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
               $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contributionValues['contribution_recur_id'], 'amount');        
               $result = self::stopOnHoldPayment($invoice, $updateStatus, $amount);
               if (is_a($result, 'CRM_Core_Error')) {
-                CRM_Core_Session::setStatus(ts("Credit card processor has declined to change the status to {$tostatusName} for this recurring payment.<br>Error Message: " . $result->getMessages($result)));
+                CRM_Core_Session::setStatus(ts("Credit card processor has declined to change the status to {$tostatusName} for this recurring payment with the following Error message: " . $result->getMessages($result)));
                 CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid']));
                 return FALSE;
               }              
