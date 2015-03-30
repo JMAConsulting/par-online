@@ -570,10 +570,13 @@ WHERE cc.id = " . $postParams['contribution_id'];
         $params['net_amount'] = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a');
         $params['source'] = 'Moneris';
         $monerisResult = $moneris->doDirectPayment($monerisParams);
-        CRM_Core_Error::debug_var( '$monerisResult', $monerisResult->getMessages($monerisResult) );
         if (is_a($monerisResult, 'CRM_Core_Error')) {
-          CRM_Core_Session::setStatus(ts('Credit card processor has declined to create/update this recurring payment  with the following Error message: ' . $monerisResult->getMessages($monerisResult)));
-          echo ts('Credit card processor has declined to create/update this recurring payment with the following Error message: ' . $monerisResult->getMessages($monerisResult));
+          $extratext = '';
+          if ($fieldDetails['old_instrument'] == 6) {
+            $extratext = 'The direct debit donation has been stopped successfully. ';
+          }
+          CRM_Core_Session::setStatus(ts($extratext . 'Credit card processor has declined to create/update this recurring payment  with the following Error message: ' . $monerisResult->getMessages($monerisResult)));
+          echo ts($extratext . 'Credit card processor has declined to create/update this recurring payment with the following Error message: ' . $monerisResult->getMessages($monerisResult));
           CRM_Utils_System::civiExit();
         }
         if (in_array($monerisResult['trxn_result_code'], array(1, 27))) {
