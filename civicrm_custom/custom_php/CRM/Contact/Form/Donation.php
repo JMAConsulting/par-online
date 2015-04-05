@@ -721,6 +721,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
       if (!CRM_Utils_Array::value('cid', $params)) {
         return FALSE;
       }      
+      require_once 'CRM/Utils/Money.php';
       $query = "SELECT other_amount, general_amount, `m&s_amount` AS msamount, nsf, par_donor_bank_id, par_donor_branch_id, par_donor_account FROM civicrm_log_par_donor WHERE primary_contact_id = " . $params['cid'];
       $dao =  CRM_Core_DAO::executeQuery($query);
       while ($dao->fetch()) {
@@ -824,9 +825,18 @@ WHERE cc.id = " . $postParams['contribution_id'];
           $ids = array('contribution' => $contributionValues['id']);
           $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
           $recurResult = $updateContribute->add($updateParam, $ids);
+          
+          // add contribution change log for status change
+          $logParams = array(
+            'cid' => $_GET['cid'],
+            'payment_status' => $updateStatus,
+            'amount' => $contributionValues['amount'],
+          );
+          $oldInstrument = CRM_Utils_Array::value('payment_instrument', $_POST);
+          $_POST['payment_instrument'] = $contributionValues['payment_instrument_id'];
+          self::save_log_changes($logParams);
+          $_POST['payment_instrument'] = $oldInstrument;
         } 
-        //FIXME : add change log
-        
         if (!$redirect) {
           CRM_Core_Session::setStatus("All {$fromStatusName} recurring contributions set to {$tostatusName} successfully.");
           CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid']));
