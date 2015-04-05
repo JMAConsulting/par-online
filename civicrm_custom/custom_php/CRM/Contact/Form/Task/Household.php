@@ -75,20 +75,20 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
     $this->createRelationship($mainContactId, $houseHoldId, HEAD_OF_HOUSEHOLD);
     // get external identifier of main contact
     $supporterId = CRM_Core_DAO::singleValueQuery("SELECT contact_id_b FROM civicrm_relationship WHERE relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_a = {$mainContactId} AND is_active = 1");
-    $contactArray = implode(', ', array_diff($this->_contactIds, array($mainContactId)));
-    
-    /* FIXME  stop all contribution for others */
-    $instrument = CRM_Core_OptionGroup::getValue('payment_instrument', 'Direct Debit');
-    if ($contactArray) {
-      CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution SET total_amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
-      CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
-    }
-    // add log when donor is merged
-    /* END OF FIXME */
-    
+        
+    require_once 'CRM/Contact/Form/Donation.php';
     foreach ($this->_contactIds as $contactID) { 
       $houseHoldCid = $this->changeRelatedHouseholds($contactID, $mainContactId, $contacts);
       if ($contactID != $mainContactId) {
+        $_GET['cid'] = $contactID;
+        
+        // edge case if contribution status is on hold
+        /* $_GET['mode'] = 'inprogress'; */
+        /* CRM_Contact_Form_Donation::changeContriStatus(TRUE); */
+       
+        $_GET['mode'] = 'stop';
+        CRM_Contact_Form_Donation::changeContriStatus(TRUE);
+        unset($_GET['cid'], $_GET['mode']);
         $contacts[] = $contactID;
         $this->createRelationship($contactID, $houseHoldId, MEMBER_OF_HOUSEHOLD);
         $this->createRelationship($contactID, $supporterId, SUPPORTER_RELATION_TYPE_ID, TRUE); // UCCPAR - 393 Supporter Relationships
@@ -107,7 +107,6 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
           $this->createRelationship($additionalParams['monthly_contact_id'], $houseHoldCid, HEAD_OF_HOUSEHOLD);
           if (CRM_Utils_Array::value('monthly_donation', $additionalParams) == 'previous') {
             $_GET['cid'] = $additionalParams['monthly_contact_id'];
-            require_once 'CRM/Contact/Form/Donation.php';
             CRM_Contact_Form_Donation::saveContribution($additionalParams, TRUE);
             $_GET['cid'] = '';
           }

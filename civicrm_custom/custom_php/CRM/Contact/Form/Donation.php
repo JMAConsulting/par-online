@@ -771,7 +771,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
       return $moneris->doDirectPayment($monerisParams);
     }
 
-    function changeContriStatus() {
+    function changeContriStatus($redirect = FALSE) {
       require_once 'CRM/Contribute/BAO/ContributionRecur.php';
       switch ($_GET['mode']) {
         case 'onhold':
@@ -794,18 +794,18 @@ WHERE cc.id = " . $postParams['contribution_id'];
           break;
       }
       
-      $getContributionParams = array( 
-        'version' => 3,
-        'contact_id' => $_GET['cid'],
-        'contribution_status_id'  => $statuscheck
-      );
-      $contributionResult = civicrm_api('contribution', 'get', $getContributionParams);
-      if ($contributionResult['values']) {
-        foreach ($contributionResult['values'] as $contributionKey => $contributionValues) {
-          if ($contributionValues['payment_instrument'] != 'Direct Debit') {
-            $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contributionValues['contribution_recur_id'], 'invoice_id');
+      $recurValues = CRM_Contribute_BAO_ContributionRecur::getRecurContributions($_GET['cid']);
+      
+      if (!empty($recurValues)) {
+        foreach ($recurValues as $contributionKey => $contributionValues) {
+          if ($contributionValues['contribution_status_id'] != $statuscheck) {
+            continue;
+          }
+          $contributionValues['payment_instrument_id'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contributionValues['id'], 'payment_instrument_id'); 
+          if ($contributionValues['payment_instrument_id'] != 6) {
+            $invoice = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contributionValues['id'], 'invoice_id');
             if ($invoice) {
-              $amount = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contributionValues['contribution_recur_id'], 'amount');        
+              $amount = $contributionValues['amount'];        
               $result = self::stopOnHoldPayment($invoice, $updateStatus, $amount);
               if (is_a($result, 'CRM_Core_Error')) {
                 CRM_Core_Session::setStatus(ts("Credit card processor has declined to change the status to {$tostatusName} for this recurring payment with the following Error message: " . $result->getMessages($result)));
@@ -814,30 +814,25 @@ WHERE cc.id = " . $postParams['contribution_id'];
               }              
             }
           }
-          $updateParams = array( 
-            'version' => 3,
-            'id' => $contributionKey,
-            'contact_id' => $contributionValues['contact_id'],
-            'contribution_type_id' => $contributionValues['contribution_type_id'],
-            'contribution_recur_id' => $contributionValues['contribution_recur_id'],
-            'contribution_status_id' => $updateStatus
-          );
-          $contributionResult = civicrm_api('contribution', 'create', $updateParams);
-          // update recurring contribution table status ///
+          
           $updateParam = array( 
-            'id' => $contributionValues['contribution_recur_id'],  
+            'id' => $contributionValues['id'],  
             'contact_id' => $_GET['cid'],  
-            'contribution_type_id' => $contributionValues['contribution_type_id'],
+            'modified_date' => date('YmdHis'),
             'contribution_status_id' => $updateStatus
           );
-          $ids = array('contribution' => $contributionValues['contribution_recur_id']);
+          $ids = array('contribution' => $contributionValues['id']);
           $updateContribute = new CRM_Contribute_BAO_ContributionRecur();
           $recurResult = $updateContribute->add($updateParam, $ids);
         } 
-        CRM_Core_Session::setStatus("All {$fromStatusName} recurring contributions set to {$tostatusName} successfully.");
-        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid'])); 
+        //FIXME : add change log
+        
+        if (!$redirect) {
+          CRM_Core_Session::setStatus("All {$fromStatusName} recurring contributions set to {$tostatusName} successfully.");
+          CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid']));
+        }
       } 
-      else {
+      elseif (!$redirect) {
         CRM_Core_Session::setStatus("No {$fromStatusName} recurring contributions available.");
         CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&selectedChild=donation&cid=" . $_GET['cid']));
       }      
