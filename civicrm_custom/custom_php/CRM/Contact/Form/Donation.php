@@ -577,7 +577,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
           }
           CRM_Core_Session::setStatus(ts($extratext . 'Credit card processor has declined to create/update this recurring payment  with the following Error message: ' . $monerisResult->getMessages($monerisResult)));
           echo ts($extratext . 'Credit card processor has declined to create/update this recurring payment with the following Error message: ' . $monerisResult->getMessages($monerisResult));
-          CRM_Utils_System::civiExit();
+          if (!$hasPostValue) {
+            CRM_Utils_System::civiExit();
+          }
         }
         if (in_array($monerisResult['trxn_result_code'], array(1, 27))) {
           $recurId = array();
@@ -614,7 +616,9 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       CRM_Core_Session::setStatus(ts($successfullDonation));
       echo ts($successfullDonation);
-      CRM_Utils_System::civiExit();
+      if (!$hasPostValue) {
+        CRM_Utils_System::civiExit();
+      }
     }
     
     function editContribution($contributionId, $paymentInstrument, $status = 1, $noChanges = FALSE){
