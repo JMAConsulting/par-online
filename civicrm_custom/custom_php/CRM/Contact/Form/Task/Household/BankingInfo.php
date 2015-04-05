@@ -113,43 +113,13 @@ class CRM_Contact_Form_Task_Household_BankingInfo extends CRM_Contact_Form_Task_
     $params['_contacts'] = $this->_contacts;
     $params['amount'] = 0;
     foreach ($params as $key => $value) {
-      if (strstr($key, 'price')) {
+      if (strstr($key, 'price_')) {
         $params['amount'] = $params['amount'] + $value;
       }
-    }
-    //switch the preimary contribution params to selected household - start
-    $supporterId = CRM_Core_DAO::singleValueQuery('SELECT contact_id_b FROM civicrm_relationship WHERE contact_id_a = %1 AND is_active = 1 AND relationship_type_id = %2', 
-      array(
-        1 =>  array($params['monthly_contact_id'], 'Integer'),
-        2 =>  array(SUPPORTER_RELATION_TYPE_ID, 'Integer'),
-      )
-    );
-    $parent_id = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contribution_type WHERE contact_id = ".$supporterId." AND parent_id IS NULL");
-    if ($parent_id) {
-      $params['contribution_type'] = $parent_id;
-    }
-    $paramsPrice['contribution_type_id'] = $parent_id;
-    $DAO = CRM_Core_DAO::executeQuery("SELECT id FROM civicrm_contribution_type WHERE contact_id = ".$supporterId." AND parent_id IS NOT NULL");
-    if ($DAO->N) {
-      while ($DAO->fetch()) {
-        $DAOset = CRM_Core_DAO::executeQuery("SELECT id, price_set_id FROM civicrm_price_field WHERE contribution_type_id = ".$DAO->id);
-        while ($DAOset->fetch()) {
-          $params['pricesetid'] = $DAOset->price_set_id;
-          $priceFields[] = 'price_'.$DAOset->id;
-        }
-      }
-    } 
-    $priceCount = 0;
-    foreach ($params as $key => $value) {
-      if (strstr($key, 'price_')) {
-        $params[$priceFields[$priceCount]] = $value;
-        unset($params[$key]);
-        $priceCount++; 
-      }
-    }
-    //switch the preimary contribution params to selected household - end
-    $this->_params['household_member'][] = $params;    
+    }    
     
+    //switch the primary contribution params to selected household - end
+    $this->_params['household_member'][] = $params;
     if (str_replace('houseHold_', '', $this->_name) == ($count - 1)) {
       // call function to create all
       CRM_Contact_Form_Task_Household::processContacts($this->_params);
