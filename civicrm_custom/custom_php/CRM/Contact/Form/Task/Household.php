@@ -80,6 +80,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
       CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution SET total_amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
       CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
     }
+    // add log when donor is merged
     /* END OF FIXME */
     
     foreach ($this->_contactIds as $contactID) { 
@@ -95,8 +96,11 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
           $additionalParams = $params['household_member'][$id];
          
           CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id = {$contactID}");
-          CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $additionalParams['monthly_contact_id'], 'external_identifier', $addExtID);
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = '$addExtID' WHERE id = {$additionalParams['monthly_contact_id']}");
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_log_par_donor SET primary_contact_id = {$additionalParams['monthly_contact_id']}, log_time = now() WHERE external_identifier = '". str_replace('D-', '', $addExtID) . "'");
           $addContacts = $additionalParams['_contacts'];
+          $resetId = array_search($additionalParams['monthly_contact_id'], $addContacts);
+          unset($addContacts[$resetId]);
           $this->createRelationship($additionalParams['monthly_contact_id'], $houseHoldCid, HEAD_OF_HOUSEHOLD);
           if (CRM_Utils_Array::value('monthly_donation', $additionalParams) == 'previous') {
             $_GET['cid'] = $additionalParams['monthly_contact_id'];
@@ -109,7 +113,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
             $c = 1;
             CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id IN (" . implode(',', $addContacts) . ")");
             foreach ($addContacts as $aCid) {
-              CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $aCid, 'external_identifier', $addExtID . '-' . $c);
+              CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = '" . $addExtID . '-' . $c . "' WHERE id = {$aCid}");
               $c++;
             }    
           }
