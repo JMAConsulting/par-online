@@ -67,6 +67,9 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
     
     $query = "SELECT last_name, first_name FROM civicrm_contact WHERE id IN (" . implode(",", $this->_contactIds) . ")";
     $externalIdentifier = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $mainContactId, 'external_identifier');
+    if (empty($houseHoldId)) {
+      $houseHoldId = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', str_replace('D-', 'H-', $externalIdentifier), 'id', 'external_identifier');
+    }
     $houseHoldId = $this->createHouseHoldName($query, $houseHoldId, $externalIdentifier);
     // create relationship as head of household
     $this->createRelationship($mainContactId, $houseHoldId, HEAD_OF_HOUSEHOLD);
