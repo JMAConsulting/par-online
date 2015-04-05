@@ -111,25 +111,19 @@ class CRM_Contact_Form_Task_Household_BankingInfo extends CRM_Contact_Form_Task_
     $params = $this->_submitValues;
     $count = count($this->_params['otherHousehold']);
     $params['_contacts'] = $this->_contacts;
-    $params['amount'] =NULL;
+    $params['amount'] = 0;
     foreach ($params as $key => $value) {
       if (strstr($key, 'price')) {
         $params['amount'] = $params['amount'] + $value;
       }
     }
     //switch the preimary contribution params to selected household - start
-    $getParams = array( 
-      'version' => 3,
-      'contact_id_a' => $params['monthly_contact_id'],
-      'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
-      'is_active' => 1,
+    $supporterId = CRM_Core_DAO::singleValueQuery('SELECT contact_id_b FROM civicrm_relationship WHERE contact_id_a = %1 AND is_active = 1 AND relationship_type_id = %2', 
+      array(
+        1 =>  array($params['monthly_contact_id'], 'Integer'),
+        2 =>  array(SUPPORTER_RELATION_TYPE_ID, 'Integer'),
+      )
     );
-    require_once 'api/api.php';
-    $supporterRelation = civicrm_api('relationship', 'get', $getParams);
-    $supporterId = NULL;
-    if (CRM_Utils_Array::value('id', $supporterRelation)) {
-      $supporterId = $supporterRelation['values'][$supporterRelation['id']]['contact_id_b'];
-    }
     $parent_id = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contribution_type WHERE contact_id = ".$supporterId." AND parent_id IS NULL");
     if ($parent_id) {
       $params['contribution_type'] = $parent_id;

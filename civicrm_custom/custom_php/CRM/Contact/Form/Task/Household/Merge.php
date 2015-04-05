@@ -143,6 +143,7 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id IN (" . implode(',', $this->_
         $params['otherHousehold'][] = $dao->contact_id;
       }
     }
+       
     // set this if contact has households
     if (!count($params['otherHousehold'])) {
       CRM_Contact_Form_Task_Household::processContacts($params);

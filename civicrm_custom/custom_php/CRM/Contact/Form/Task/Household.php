@@ -62,19 +62,8 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
    */
   public function processContacts($params) {
     $mainContactId = $params['contact_id'];
-
-    $getParams = array( 
-      'version' => 3,
-      'contact_id_a' => $mainContactId,
-      'relationship_type_id' => HEAD_OF_HOUSEHOLD,
-      'is_active' => 1,
-    );
-    require_once 'api/api.php';
-    $houseHoldRelation = civicrm_api('relationship', 'get', $getParams);
-    $houseHoldId = NULL;
-    if (CRM_Utils_Array::value('id', $houseHoldRelation)) {
-      $houseHoldId = $houseHoldRelation['values'][$houseHoldRelation['id']]['contact_id_b'];
-    }
+    
+    $houseHoldId = CRM_Core_DAO::singleValueQuery("SELECT contact_id_b FROM civicrm_relationship WHERE contact_id_a = {$mainContactId} AND relationship_type_id = " . HEAD_OF_HOUSEHOLD);
     
     $query = "SELECT last_name, first_name FROM civicrm_contact WHERE id IN (" . implode(",", $this->_contactIds) . ")";
     $externalIdentifier = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $mainContactId, 'external_identifier');
@@ -82,13 +71,17 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
     // create relationship as head of household
     $this->createRelationship($mainContactId, $houseHoldId, HEAD_OF_HOUSEHOLD);
     // get external identifier of main contact
-    $supporterId = CRM_Core_DAO::singleValueQuery("SELECT contact_id_b FROM civicrm_relationship WHERE relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_a = {$mainContactId}");
+    $supporterId = CRM_Core_DAO::singleValueQuery("SELECT contact_id_b FROM civicrm_relationship WHERE relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_a = {$mainContactId} AND is_active = 1");
     $contactArray = implode(', ', array_diff($this->_contactIds, array($mainContactId)));
+    
+    /* FIXME  stop all contribution for others */
     $instrument = CRM_Core_OptionGroup::getValue('payment_instrument', 'Direct Debit');
     if ($contactArray) {
       CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution SET total_amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
       CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET amount = 0.00 WHERE contact_id IN ({$contactArray}) AND payment_instrument_id = {$instrument}");
     }
+    /* END OF FIXME */
+    
     foreach ($this->_contactIds as $contactID) { 
       $houseHoldCid = $this->changeRelatedHouseholds($contactID, $mainContactId, $contacts);
       if ($contactID != $mainContactId) {
@@ -112,12 +105,14 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
             $_GET['cid'] = '';
           }
           // change external identifier
-          $c = 1;
-          CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id IN (" . implode(',', $addContacts) . ")");
-          foreach ($addContacts as $aCid) {
-            CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $aCid, 'external_identifier', $addExtID . '-' . $c);
-            $c++;
-          }             
+          if (!empty($addContacts)) {
+            $c = 1;
+            CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id IN (" . implode(',', $addContacts) . ")");
+            foreach ($addContacts as $aCid) {
+              CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $aCid, 'external_identifier', $addExtID . '-' . $c);
+              $c++;
+            }    
+          }
         }
       }
     }
@@ -169,7 +164,7 @@ GROUP BY cc.contact_id";
         'is_active' => 0,
         'end_date' => date('Ymd'),
       );
-      civicrm_api('relationship', 'create', $params);      
+      civicrm_api('relationship', 'create', $params);
     }
     if ($contactB) {
       $params = array( 
@@ -179,8 +174,18 @@ GROUP BY cc.contact_id";
         'is_active' => 1,
         'start_date' => date('Ymd'),
         'contact_id_b' => $contactB,
+        'end_date' => NULL
       );
-      civicrm_api('relationship', 'create', $params);
+      $relationship =civicrm_api('relationship', 'create', $params);
+      if ($relationship['is_error'] && $relationship['error_message'] == 'Relationship already exists') {
+        $sql = 'UPDATE civicrm_relationship SET is_active = 1, end_date = NULL WHERE contact_id_a = %1 AND contact_id_b = %2 AND relationship_type_id = %3';
+        $params = array(
+          1 => array($contactA, 'Integer'),
+          2 => array($contactB, 'Integer'),
+          3 => array($relType, 'Integer'),
+        );
+        CRM_Core_DAO::executeQuery($sql, $params);
+      }
     }
   }
   
@@ -213,8 +218,8 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
       if ($dao->N == 1) {
         $params = array(
           'contact_id' => $houseHoldCid,
+          'id' => $houseHoldCid,
           'contact_type' => 'Household',
-          'external_identifier' => '',
           'is_deleted' => 1,
           'version' => 3,
         );
@@ -234,6 +239,7 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
     if (empty($query)) {
       return FALSE;
     }
+    
     $contactDAO = CRM_Core_DAO::executeQuery($query);
     if ($contactDAO->N < 2) {
       return NULL;
@@ -259,11 +265,17 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
     if ($dao->N) {
       $name = $name . "-" . $dao->N;
     }
+    if ($externalIdentifier) {
+      $externalIdentifier = str_replace('D-', 'H-', $externalIdentifier);
+    }
+    elseif ($contactID) {
+      $externalIdentifier = CRM_Core_DAO::singleValueQuery('SELECT external_identifier FROM civicrm_contact WHERE id = ' . $contactID);
+    }
     $contactParams = array(
       'household_name' => $name,
       'sort_name' => $name,
       'display_name' => $name,
-      'external_identifier' => str_replace('D-', 'H-', $externalIdentifier),
+      'external_identifier' => $externalIdentifier,
       'version' => 3,
       'contact_type' => 'Household',
     );
@@ -271,6 +283,9 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
       $contactParams['id'] = $contactID;
     }
     $result = civicrm_api('contact', 'create', $contactParams);
+    if ($externalIdentifier) {
+      CRM_Core_DAO::executeQuery('UPDATE civicrm_log_par_donor SET par_donor_name = %1, log_time = now() WHERE external_identifier = %2', array(1 => array($name, 'String'), 2 => array(str_replace('H-', '', $externalIdentifier), 'Integer')));
+    }
     return $result['id'];
   }
 }
