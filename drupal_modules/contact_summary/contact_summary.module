@@ -2241,8 +2241,8 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
     // soft delete household
     $params = array(
       'contact_id' => $contactB,
+      'id' => $contactB,
       'contact_type' => 'Household',
-      'external_identifier' => '',
       'is_deleted' => 1,
       'version' => 3,
     );
