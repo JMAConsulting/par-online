@@ -430,8 +430,10 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     $form->setDefaults(array('external_identifier' => $externalIdentifier));
     
     $title = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_UFGroup', $form->getVar('_gid'), 'title');
-    
-    $hName = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalIdentifier, 'household_name', 'external_identifier');
+    $hName = '';
+    if (!CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalIdentifier, 'is_deleted', 'external_identifier')) {
+      $hName = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', 'H-' . $externalIdentifier, 'household_name', 'external_identifier');
+    }
     if (empty($hName)) {
       $hName = CRM_Contact_BAO_Contact::displayName($form->_hid);
     }
