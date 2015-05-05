@@ -1330,14 +1330,14 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
 
     if ($form->getVar('_gid') == HOUSEHOLD_PROFILE_ID) {
       $params = array( 
-        'version' => 3,
-        'relationship_type_id' => HEAD_OF_HOUSEHOLD,
-        'contact_id_b' => $hid,
+        1 => array(HEAD_OF_HOUSEHOLD, 'Integer'),
+        2 => array($hid, 'Integer'),
       );
+      $query = 'SELECT cr.id FROM civicrm_relationship cr INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a WHERE cc.is_deleted = 0 AND relationship_type_id = %1 AND cr.contact_id_b = %2';
       
-      $rel = civicrm_api('relationship', 'get', $params);
+      $relId = CRM_Core_DAO::singleValueQuery($query, $params);
       
-      if (empty($rel['count'])) {
+      if (empty($relId)) {
         $params = array( 
           'version' => 3,
           'contact_id_a' => $form->getVar('_hid'),
@@ -1351,7 +1351,7 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
       else {
         $params = array( 
           'version' => 3,
-          'id' => $rel['id'],
+          'id' => $relId,
           'is_active' => 1,
           'end_date' => NULL,
         );
