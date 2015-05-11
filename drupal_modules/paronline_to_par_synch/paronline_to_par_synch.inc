@@ -17,6 +17,9 @@ function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
       }
     }
   }
+  if (!empty($params['par_donor_name'])) {
+    $params['par_donor_name'] = CRM_Core_DAO::escapeString($params['par_donor_name']);
+  }
   if ( $op == 'Update' || $op == 'Delete' ) {
     if ( array_key_exists('external_identifier' , $params) ) {
       $where = "WHERE external_identifier = '".$params['external_identifier']."'";

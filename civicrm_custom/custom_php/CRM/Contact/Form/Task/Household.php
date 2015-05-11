@@ -268,8 +268,9 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
     if (!$name) {
       return false;
     }
-    $houseHoldQuery = "SELECT household_name FROM civicrm_contact WHERE household_name LIKE '%" . $name . "%'";
-    $dao = CRM_Core_DAO::executeQuery($houseHoldQuery);
+    $houseHoldQuery = "SELECT household_name FROM civicrm_contact WHERE household_name LIKE %1";
+    $qParams = array(1 => array($name, 'String', TRUE));
+    $dao = CRM_Core_DAO::executeQuery($houseHoldQuery, $qParams);
     if ($dao->N) {
       $name = $name . "-" . $dao->N;
     }
