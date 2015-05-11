@@ -182,15 +182,17 @@ GROUP BY cc.contact_id";
         'contact_id_b' => $contactB,
         'end_date' => NULL
       );
-      $relationship =civicrm_api('relationship', 'create', $params);
+      $relationship = civicrm_api('relationship', 'create', $params);
       if ($relationship['is_error'] && $relationship['error_message'] == 'Relationship already exists') {
-        $sql = 'UPDATE civicrm_relationship SET is_active = 1, end_date = NULL WHERE contact_id_a = %1 AND contact_id_b = %2 AND relationship_type_id = %3';
-        $params = array(
+        $sql = 'SELECT id FROM civicrm_relationship WHERE contact_id_a = %1 AND contact_id_b = %2 AND relationship_type_id = %3';
+        $queryParams = array(
           1 => array($contactA, 'Integer'),
           2 => array($contactB, 'Integer'),
           3 => array($relType, 'Integer'),
         );
-        CRM_Core_DAO::executeQuery($sql, $params);
+        $params['id'] = CRM_Core_DAO::singleValueQuery($sql, $queryParams);
+        
+        $relationship = civicrm_api('relationship', 'create', $params);
       }
     }
   }
