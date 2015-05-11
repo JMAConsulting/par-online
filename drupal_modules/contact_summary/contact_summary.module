@@ -1702,6 +1702,7 @@ function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef 
       $hID = CRM_Core_DAO::singleValueQuery('SELECT contact_id_b FROM civicrm_relationship WHERE relationship_type_id = ' . MEMBER_OF_HOUSEHOLD . ' AND contact_id_a = ' . $objectId);
       
       mergeContacts($objectId, $hID);
+      // create change log for new record
     }
           
     if ($objectName == 'Individual' && $op == 'trash') {
@@ -1747,7 +1748,8 @@ contact_id_a = ' . $objectId);
         if ($name) {
           if ($dao->N > 1) {
             // update household name
-            CRM_Core_DAO::setFieldValue('CRM_Contact_BAO_Contact', 'H-'. $externalId[1], 'household_name', $name ,'external_identifier');
+            $queryParms = array('1' => array($name, 'String'), 2 => array('H-'. $externalId[1], 'String'));
+            CRM_Core_DAO::executeQuery('UPDATE civicrm_contact SET household_name = %1 WHERE external_identifier = %2 ;', $queryParms);
           }
           $queryParms = array('1' => array($name, 'String'), 2 => array($externalId[1], 'String'));
           CRM_Core_DAO::executeQuery('UPDATE civicrm_log_par_donor SET par_donor_name = %1 WHERE external_identifier = %2 ;', $queryParms);
