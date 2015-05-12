@@ -64,15 +64,16 @@ class CRM_Contact_Form_Task_Household_Merge extends CRM_Contact_Form_Task_Househ
     $dao = self::getBankingContacts($this->_contactIds);
     if ($dao->N) {
       $rows = NULL;
+      $ccType = array(VISA => ts('Visa'), MASTER_CARD => ts('MasterCard'));
       while ($dao->fetch()) {
         $this->addElement('radio', 'contact_id', '', '', $dao->id);
         $this->_bankContacts[] = $dao->id;
         $rows[$dao->id] = array(
           'contact_name' => $dao->sort_name,
-          'account_number' => $dao->account_number_4,
-          'cc_type' => $dao->cc_type_31,
-          'bank_name' => $dao->bank__name_38,
-          'branch_name' => $dao->branch_name_39,
+          'account_number' => $dao->par_account_number_13,
+          'cc_type' => (in_array($dao->bank_number_11, array(VISA, MASTER_CARD))) ? $ccType[$dao->bank_number_11] : ts('Direct Debit'),
+          'bank_name' => $dao->bank_number_11,
+          'branch_name' => $dao->branch_number_12,
         );
         $query = "SELECT cc1.id contact_id, cc1.last_name, cc1.first_name, cc1.external_identifier FROM civicrm_contact cc
 LEFT JOIN civicrm_contact cc1 on cc.external_identifier = SUBSTRING_INDEX(cc1.external_identifier, '-', 2)

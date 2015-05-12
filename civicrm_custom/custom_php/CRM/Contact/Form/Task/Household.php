@@ -140,17 +140,15 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
     $selectFields += array(
       'ct.sort_name', 
       'ct.id', 
-      'IFNULL(account_number_4, "-") account_number_4', 
-      'IFNULL(cc_type_31, "-") cc_type_31', 
-      'IFNULL(bank__name_38, "-") bank__name_38', 
-      'IFNULL(branch_5, "-") branch_name_39'
+      'IFNULL(par_account_number_13, "-") par_account_number_13', 
+      'IFNULL(bank_number_11, "-") bank_number_11', 
+      'IFNULL(branch_number_12, "-") branch_number_12'
     );
     $select = implode(',', $selectFields);
-    $query = "SELECT $select FROM `civicrm_value_account_details_2` cb
-INNER JOIN civicrm_contribution cc ON cc.id = cb.entity_id
-INNER JOIN civicrm_contact ct ON ct.id = cc.contact_id
-WHERE cc.contact_id IN ($where)
-GROUP BY cc.contact_id";
+    $query = "SELECT $select FROM `civicrm_value_par_account_details_6` cb
+INNER JOIN civicrm_contact ct ON ct.id = cb.entity_id
+WHERE ct.id IN ($where)
+GROUP BY ct.id";
     return CRM_Core_DAO::executeQuery($query);
   }
  
