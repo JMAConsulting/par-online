@@ -12,12 +12,11 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
         $params['external_identifier'] = $result[1];
       } 
 
-      $ownerQuery = "SELECT external_identifier, organization_name FROM civicrm_contact WHERE id = ".$objectRef->contact_id_b;
+      $ownerQuery = "SELECT id, organization_name FROM civicrm_contact WHERE id = ".$objectRef->contact_id_b;
       $ownerData = CRM_Core_DAO::executeQuery($ownerQuery);
       while( $ownerData->fetch() ) {
-        if ( !empty($ownerData->external_identifier) ) {
-          $result = explode( '-',$ownerData->external_identifier);
-          $params['parent_id'] = $result[1];
+        if ( !empty($ownerData->id) ) {
+          $params['parent_id'] = $ownerData->id;
         }
         
         if ( !empty($ownerData->organization_name) ) {
