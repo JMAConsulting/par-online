@@ -2267,6 +2267,7 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
   }
   // UCCPAR-386
   updateContactExtIdentifier($contactA);
+  createLogpar($contactA);
 }
 
 function findContactCongregation($cid = NULL) {
@@ -2312,4 +2313,50 @@ function getExternalIdentifier ($externalId) {
   $sql = "SELECT max(cast(SUBSTRING_INDEX(REPLACE(external_identifier, 'D-{$externalId}', ''),'-',-1) as unsigned)) + 1 ext FROM civicrm_contact where external_identifier LIKE 'D-{$externalId}%'";
   $externalIdentifier = "D-{$externalId}-" . CRM_Core_DAO::singleValueQuery($sql);
   return $externalIdentifier;
+}
+
+function createLogpar($contactId) {
+  $sql = 'SELECT ct.id, ct.external_identifier, ct.display_name, ca.street_address, ca.city, 
+            ca.postal_code, ce.email, cve.envelope_number_40 envelope, crc.id parent_id, 
+            crc.organization_name, cvo.ms_number_16 ms_number, cvp.bank_number_11 bank_id, 
+            cvp.branch_number_12 branch_id, cvp.par_account_number_13 account_no
+          FROM civicrm_contact ct 
+          LEFT JOIN civicrm_address ca On ca.contact_id = ct.id AND ca.is_primary = 1 
+          LEFT JOIN civicrm_email ce on ce.contact_id = ct.id AND ce.is_primary = 1
+          LEFT JOIN civicrm_value_envelope_13 cve ON cve.entity_id = ct.id
+          LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = ct.id 
+            AND cr.relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID . ' AND is_active = 1
+          LEFT JOIN civicrm_contact crc ON crc.id = cr.contact_id_b
+          LEFT JOIN civicrm_value_other_details_7 cvo ON cvo.entity_id = ct.id
+          LEFT JOIN civicrm_value_par_account_details_6 cvp ON cvp.entity_id = ct.id
+          WHERE ct.id = ' . $contactId;
+  $dao = CRM_Core_DAO::executeQuery($sql);
+  if ($dao->fetch()) {
+    $donorLog = array(
+      'primary_contact_id' => $contactId,
+      'external_identifier' => str_replace('D-', '', $dao->external_identifier),
+      'par_donor_name' => $dao->display_name,
+      'ms_number' => $dao->ms_number,
+      'organization_name' => $dao->organization_name,
+      'street_address' => $dao->street_address,
+      'is_primary' => 0,
+      'city' => $dao->city,
+      'postal_code' => $dao->postal_code,
+      'country' => 'CAN',
+      'email' => $dao->email,
+      '`m&s_amount`' => '0.00',
+      'general_amount' => '0.00',
+      'other_amount' => '0.00',
+      'par_donor_envelope' => $dao->envelope,
+      'par_donor_bank_id' => $dao->bank_id,
+      'par_donor_branch_id' => $dao->branch_id,
+      'par_donor_account' => $dao->account_no,
+      'parent_id' => $dao->parent_id,
+      'nsf' => 0,
+      'removed' => 0,
+    );
+    $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = " . $contactId;
+    $log_id = CRM_Core_DAO::singleValueQuery($query);
+    make_entry_in_par_log(empty($log_id) ? 'Insert' : 'Update', $donorLog);
+  }  
 }
