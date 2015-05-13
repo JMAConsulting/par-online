@@ -405,6 +405,13 @@ function contact_summary_civicrm_xmlMenu( &$files ) {
 } 
 
 function contact_summary_civicrm_buildForm( $formName, &$form ) {
+  if ($formName == 'CRM_Contact_Form_Search_Custom' && $form->getVar('_customSearchID') == 18) {
+    $breadCrumb = drupal_get_breadcrumb();
+    $breadCrumb[2] = '<a href = "' . CRM_Utils_System::url('civicrm/contact/search/custom', 'reset=1&csid=18&force=1') . '">' . ts("Find Donor's") . '</a>';
+    unset($breadCrumb[3]);
+    drupal_set_breadcrumb($breadCrumb);
+  }
+  
   if ($formName == 'CRM_Contact_Form_Task_Delete') {
     $query = 'SELECT primary_contact_id FROM civicrm_log_par_donor WHERE nsf = 1 AND primary_contact_id IN (' . implode(', ', $form->_contactIds) . ');';
     $dao = CRM_Core_DAO::executeQuery($query);
