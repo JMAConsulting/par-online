@@ -2253,7 +2253,7 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
     // disable relationship to household
     CRM_Contact_Form_Task_Household::createRelationship($contactA);
   }
-  $query = "SELECT cc.first_name, cc.last_name, cc.id FROM civicrm_relationship cr INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a WHERE cr.contact_id_b = " . $contactB . " AND cr.is_active = 1 AND cc.is_deleted = 0 AND cc.id <> {$contactA}";
+  $query = "SELECT cc.first_name, cc.last_name, cc.id, cc.display_name FROM civicrm_relationship cr INNER JOIN civicrm_contact cc ON cc.id = cr.contact_id_a WHERE cr.contact_id_b = " . $contactB . " AND cr.is_active = 1 AND cc.is_deleted = 0 AND cc.id <> {$contactA}";
   $dao = CRM_Core_DAO::executeQuery($query);
   
   if ($dao->N > 1) {
@@ -2271,6 +2271,13 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
     civicrm_api('contact', 'create', $params);
     //disable relationship to household
     CRM_Contact_Form_Task_Household::createRelationship($dao->id);
+    //update the par donor name in log table
+    $donorLog = array(
+      'primary_contact_id' => $dao->id,
+      'par_donor_name' => $dao->display_name,
+    );
+    make_entry_in_par_log('Update', $donorLog);
+    
   }
   // UCCPAR-386
   updateContactExtIdentifier($contactA);
