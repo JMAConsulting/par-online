@@ -255,25 +255,27 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         return $sets;
     }    
 
-    public function getRelatedFundType( $cid, $relationType = SUPPORTER_RELATION_TYPE_ID ){
-        require_once 'api/api.php';
-        $getRelationParam = array( 'version'  => 3,
-                                   'contact_id'       => $cid );
-        $result = civicrm_api( 'relationship', 'get', $getRelationParam );
-        $contributionTypes = array();
-        require_once 'CRM/Contribute/DAO/ContributionType.php';
+    public function getRelatedFundType($cid, $relationType = SUPPORTER_RELATION_TYPE_ID) {
+      require_once 'api/api.php';
+      $getRelationParam = array( 
+        'version' => 3,
+        'contact_id' => $cid 
+      );
+      $result = civicrm_api('relationship', 'get', $getRelationParam);
+      $contributionTypes = array();
+      require_once 'CRM/Contribute/DAO/ContributionType.php';
+      foreach ($result['values'] as $relationValue) {
         $typeDao = new CRM_Contribute_DAO_ContributionType();
-        foreach( $result[ 'values' ] as $relationValue ){
-            if( $relationValue[ 'relationship_type_id' ] == $relationType ){
-                $typeDao->contact_id = $relationValue[ 'contact_id_b' ];
-                $typeDao->find();
-                while( $typeDao->fetch() ){
-                    $contributionTypes[ $typeDao->id ] = $typeDao->name;
-                }
-            }
+        if ($relationValue['relationship_type_id'] == $relationType) {
+          $typeDao->contact_id = $relationValue['contact_id_b'];
+          $typeDao->find();
+          while ($typeDao->fetch()) {
+            $contributionTypes[ $typeDao->id ] = $typeDao->name;
+          }
         }
-        asort($contributionTypes);
-        return $contributionTypes;
+      }
+      asort($contributionTypes);
+      return $contributionTypes;
     }
 
     static function saveContribution($postParams = NULL, $hasPostValue = FALSE) {
