@@ -216,32 +216,36 @@ LEFT JOIN civicrm_log_par_donor log ON (log.primary_contact_id = contact_a.id)";
     }
 
     function alterRow( &$row ) {
-        require_once 'CRM/Core/DAO.php';
-        require_once 'CRM/Utils/Money.php';
-        require_once 'CRM/Contribute/PseudoConstant.php';
-        $status = CRM_Contribute_PseudoConstant::contributionStatus();
-        $from = date('Y').'-'.date('m').'-01 00:00:00';  
-        $upTo = date('Y-m-d H:i:s');
-        $summary = getDonationSummary($row['contact_id']);
-
-        if ( !empty( $summary['funds'] ) ) {
-            $funds = implode(",", $summary['funds']);
-            $row['funds'] = ltrim($funds, ",");
-        }
-        if ( $summary['upcoming'] ) {
-            $row['upcoming'] = CRM_Utils_Money::format( $summary['upcoming']['amount'] );
-        }
-        if ( $summary['month'] ) {
-            $row['mtd_total'] = CRM_Utils_Money::format( $summary['month']['amount'] );
-        }
-        if ( $summary['year'] ) {
-            $row['total'] = CRM_Utils_Money::format( $summary['year']['amount'] );
-        } 
-        $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
-        if ($contributionStatus) {
-          $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
-        }
+      $externalIdentifier = explode('-', $row['external_identifier']);
+      if (CRM_Utils_Array::value(2, $externalIdentifier)) {
         return $row;
+      }
+      require_once 'CRM/Core/DAO.php';
+      require_once 'CRM/Utils/Money.php';
+      require_once 'CRM/Contribute/PseudoConstant.php';
+      $status = CRM_Contribute_PseudoConstant::contributionStatus();
+      $from = date('Y').'-'.date('m').'-01 00:00:00';  
+      $upTo = date('Y-m-d H:i:s');
+      $summary = getDonationSummary($row['contact_id']);
+
+      if ( !empty( $summary['funds'] ) ) {
+        $funds = implode(",", $summary['funds']);
+        $row['funds'] = ltrim($funds, ",");
+      }
+      if ( $summary['upcoming'] ) {
+        $row['upcoming'] = CRM_Utils_Money::format( $summary['upcoming']['amount'] );
+      }
+      if ( $summary['month'] ) {
+        $row['mtd_total'] = CRM_Utils_Money::format( $summary['month']['amount'] );
+      }
+      if ( $summary['year'] ) {
+        $row['total'] = CRM_Utils_Money::format( $summary['year']['amount'] );
+      } 
+      $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
+      if ($contributionStatus) {
+        $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
+      }
+      return $row;
     }
 
     function setTitle( $title ) {
