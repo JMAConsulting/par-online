@@ -123,6 +123,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
       }
     }
     if (empty($contacts)) {
+      CRM_Core_Session::setStatus(ts('Supporters successfully merged.'));
       return;
     }
     CRM_Core_DAO::executeQuery("UPDATE civicrm_contact SET external_identifier = NULL WHERE id IN (" . implode(',', $contacts) . ")");
@@ -133,6 +134,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
       $count++;
     }
     CRM_Core_Session::singleton()->set('numberOfContacts', '');
+    CRM_Core_Session::setStatus(ts('Supporters successfully merged.'));
   } 
   
   public function getBankingContacts($inContactIds, $selectFields = array()) {
