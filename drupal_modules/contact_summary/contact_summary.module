@@ -2233,8 +2233,12 @@ LEFT JOIN civicrm_value_other_details_7 cv ON cv.entity_id = cc.id
 }
 
 function updateContactExtIdentifier($contactId) {
-  $maxExtId = CRM_Core_DAO::singleValueQuery("SELECT max(cast(SUBSTRING_INDEX(REPLACE(external_identifier, 'D-', ''),'-',1) as unsigned))  FROM civicrm_contact
-WHERE external_identifier LIKE 'D-%';");
+  require_once 'CRM/Core/BAO/Setting.php';
+  $maxExtId = CRM_Core_BAO_Setting::getItem(
+    CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
+    'max_par_donor_id'
+  );
+  
   if ($maxExtId < MAX_EXTERNAL_ID) {
     $maxExtId = MAX_EXTERNAL_ID;
   }
@@ -2242,6 +2246,11 @@ WHERE external_identifier LIKE 'D-%';");
     $maxExtId++;
   }  
   $flag = CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactId, 'external_identifier', 'D-' . $maxExtId);
+  CRM_Core_BAO_Setting::setItem(
+    $maxExtId,
+    CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
+    'max_par_donor_id'
+  );
   if ($flag) {
     return $maxExtId;
   }
