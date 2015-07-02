@@ -239,41 +239,46 @@ LEFT JOIN civicrm_log_par_donor clpd ON clpd.primary_contact_id = contact_a.id
         $dao = CRM_Core_DAO::executeQuery( $this->all() );
         return $dao->N;
     }
-    function alterRow( &$row ) {
-        require_once 'CRM/Core/DAO.php';
-        require_once 'api/api.php';
-        require_once 'CRM/Contribute/PseudoConstant.php';
-        $status = CRM_Contribute_PseudoConstant::contributionStatus();
+    function alterRow(&$row) {
+      require_once 'CRM/Core/DAO.php';
+      require_once 'api/api.php';
+      require_once 'CRM/Contribute/PseudoConstant.php';
+      $status = CRM_Contribute_PseudoConstant::contributionStatus();
+      $params = array( 
+        'contact_id_a' => $row['contact_id'],
+        'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+        'is_active' => 1,
+        'version' => 3,
+      );
+      $result = civicrm_api('relationship', 'get', $params);
+      
+      if (!empty($result['values'])) {
+        $includes = $result['values'][$result['id']]['contact_id_b'];
         $params = array( 
-                        'contact_id_a' => $row['contact_id'],
-                        'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
-                        'is_active' => 1,
-                        'version' => 3,
-                         );
-        $result = civicrm_api( 'relationship','get',$params );
-        
-        if ( !empty( $result['values'] ) ) {
-            $includes = $result['values'][$result['id']]['contact_id_b'];
-            $params = array( 
-                            'id' => $includes,
-                            'version' => 3,
-                             );
-            $result = civicrm_api( 'contact','get',$params );
-            $contactSubType = $result['values'][$result['id']]['contact_sub_type'];
-            $displayName = $result['values'][$result['id']]['display_name'];
-            $organizations = getOrganizations( $includes, $contactSubType, $displayName);
-            $row['pc_name'] = $organizations['Pastoral_Charge'];
-            $row['conf_name'] = $organizations['Conference'];
-        } else {
-            $row['pc_name'] = null;
-            $row['conf_name'] = null;
-        }
-        
-        $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
-        if ($contributionStatus) {
-          $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
-        }
+          'id' => $includes,
+          'version' => 3,
+        );
+        $result = civicrm_api('contact', 'get', $params);
+        $contactSubType = $result['values'][$result['id']]['contact_sub_type'];
+        $displayName = $result['values'][$result['id']]['display_name'];
+        $organizations = getOrganizations($includes, $contactSubType, $displayName);
+        $row['pc_name'] = $organizations['Pastoral_Charge'];
+        $row['conf_name'] = $organizations['Conference'];
+      } 
+      else {
+        $row['pc_name'] = null;
+        $row['conf_name'] = null;
+      }
+      $externalId = explode('-', $row['external_identifier']);
+      if (CRM_Utils_Array::value(2, $externalId)) {
         return $row;
+      }
+      
+      $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
+      if ($contributionStatus) {
+        $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
+      }
+      return $row;
     }
     
     function setTitle( $title ) {
