@@ -155,7 +155,10 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id IN (" . implode(',', $this->_
     }
   } 
   function assignHousehold() {
-    $contacts = explode(',', $_POST['contact']);
+    $contacts = array();
+    if (!empty($_POST['contact'])) {
+      $contacts = explode(',', $_POST['contact']);
+    }
     $contacts = array_flip($contacts);
     if (array_key_exists($_POST['selectedId'], $contacts)) {
       unset($contacts[$_POST['selectedId']]);
