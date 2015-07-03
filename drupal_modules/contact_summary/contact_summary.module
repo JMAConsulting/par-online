@@ -90,28 +90,31 @@ WHERE online.entity_id IS NULL AND relationship_type_id = ' . SUPPORTER_RELATION
     }
   }
 
-function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
-    if ( $objectName == 'contact' ) {
-        foreach ( $tasks as $key => $value ) {
-          if (!in_array($key, array(5, 6, 8, 15, 16))) {
-            unset( $tasks[$key] );
-          }
-        }
-        
-        $classNames = array();
-        $count = CRM_Core_Session::singleton()->get('numberOfContacts');
-        if ($count) {
-          for ($i =0; $i < $count; $i++) {
-            $classNames['houseHold_' . $i] = array( 'className' => 'CRM_Contact_Form_Task_Household_BankingInfo');
-          }
-        }
-        
-        $tasks[] = array(
-          'title' => 'Merge into one household',
-          'class' => array('CRM_Contact_Form_Task_Household_Merge') + $classNames,
-          'result' => NULL,
-        );
+function contact_summary_civicrm_searchTasks($objectName, &$tasks) {
+  if ($objectName == 'contact') {
+    foreach ($tasks as $key => $value) {
+      if (!in_array($key, array(5, 6, 8, 15, 16))) {
+        unset($tasks[$key]);
+      }
     }
+    
+    $classNames = array();
+    $count = CRM_Core_Session::singleton()->get('numberOfContacts');
+    if ($count) {
+      for ($i =0; $i < $count; $i++) {
+        $classNames['houseHold_' . $i] = array( 'className' => 'CRM_Contact_Form_Task_Household_BankingInfo');
+      }
+    }
+    $classArray = array('CRM_Contact_Form_Task_Household_Merge');
+    if (!empty($classNames)) {
+      $classArray = array_merge($classArray, $classNames);
+    }
+    $tasks[] = array(
+      'title' => 'Merge into one household',
+      'class' => $classArray,
+      'result' => NULL,
+    );
+  }
 }
 
 function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
