@@ -1499,6 +1499,9 @@ WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATIO
             if ($pardonorName) {
               $householdCreate = " INSERT INTO civicrm_contact(contact_type, sort_name, household_name, display_name, external_identifier)
 VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $rows[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}', modified_date = now(), is_deleted = 0;\n
+SET @householdcId := '';\n
+SET @hcid1 := '';\n
+SET @hcid2 := '';\n
 SELECT @householdcId := id FROM civicrm_contact WHERE external_identifier = 'H-" . $rows[0] . "';\n
 SELECT @hcid1 := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. ");\n
 SELECT @hcid2 := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. "); 
