@@ -45,16 +45,6 @@ function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
       unset($params['primary_contact_id']);
     }
     $query = "INSERT INTO civicrm_log_par_donor (".implode(", " ,array_keys($params) ).", primary_contact_id, log_action ) VALUES ( '".implode("', '" ,$params )."', ".$contact_id.", 'INSERT'  )";
-  }  else if ( $op == 'Delete' ) {
-    $update = "SET log_action = '".$op."', log_time = now(),";
-    foreach ( $params as $key => $value ) {
-      if ('primary_contact_id' == $key ) {
-        //$update .= $key." = ".$value.", ";
-      } else {
-        $update .= $key." = '".$value."', ";
-      }
-    }
-    $query = "UPDATE civicrm_log_par_donor ".rtrim( $update, ", " )." ". $where;
   }
   
   $result = CRM_Core_DAO::singleValueQuery($query);
