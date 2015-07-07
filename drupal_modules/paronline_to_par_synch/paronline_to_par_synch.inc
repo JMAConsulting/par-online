@@ -29,16 +29,25 @@ function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
     } else {
       $where = "WHERE primary_contact_id = ".$params['primary_contact_id'];
     }
-    $update = "SET log_action = '". (($log_action) ? $log_action : $op) ."', log_time = now()," ;
-    foreach ( $params as $key => $value ) {
-      if ('primary_contact_id' == $key ) {
-        //$update .= $key." = ".$value.", ";
-      } else {
-        $update .= $key." = '".$value."', ";
-      }
+    $action = CRM_Core_DAO::singleValueQuery('SELECT log_action FROM civicrm_log_par_donor ' . $where);
+    if ($action == 'Insert' && $op == 'Delete') {
+      $query = 'DELETE FROM civicrm_log_par_donor ' . $where;
     }
-    $query = "UPDATE civicrm_log_par_donor ".rtrim( $update, ", " )." ". $where;
-     
+    else {
+      if ($action == 'Insert' && $op == 'Update') {
+        $log_action = 'Insert';
+      }
+      $update = "SET log_action = '". (($log_action) ? $log_action : $op) ."', log_time = now()," ;
+      foreach ( $params as $key => $value ) {
+        if ('primary_contact_id' == $key ) {
+          //$update .= $key." = ".$value.", ";
+        } 
+        else {
+          $update .= $key." = '".$value."', ";
+        }
+      }
+      $query = "UPDATE civicrm_log_par_donor ".rtrim( $update, ", " )." ". $where;
+    }
   } else if ( $op == 'Insert' ) {
     if ( array_key_exists( 'primary_contact_id' , $params) ) {
       $contact_id = $params['primary_contact_id'];
