@@ -117,93 +117,94 @@ function contact_summary_civicrm_searchTasks($objectName, &$tasks) {
   }
 }
 
-function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
-    require_once 'CRM/Contact/BAO/GroupContact.php';
-    if ($op == 'create.new.shorcuts' ) {
-      if ( !empty( $links ) ) {
-        foreach ( $links as $key => $value ) {
-          // hide from all admin users, may be required for phase 2
- 
-          // $type = explode("-&nbsp;", $value['title'] );
-          // if( !empty( $type['1'] ) ) {
-          //     if ( "{$type['1']}" == 'Denomination' ) {
-          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-          //     }
-          //     if (  "{$type['1']}" == 'Pastoral Charge' ) {
-          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-          //     }
-          //     if (  "{$type['1']}" == 'Presbytery' ) {
-          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-          //     }
-          //     if (  "{$type['1']}" == 'Conference' ) {
-          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-          //     }
-          //     if (  "{$type['1']}" == 'Congregation' ) {
-          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-          //     }
-          // } else  if ( $value['title'] == 'Organization' ) {
-          //     $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&reset=1");
-          // }
-          // else 
-          unset($links[$key]);
-        }
-      } 
+function contact_summary_civicrm_links($op, $objectName, $objectId, &$links) {
+  require_once 'CRM/Contact/BAO/GroupContact.php';
+  if ($op == 'create.new.shorcuts') {
+    if (!empty($links)) {
+      foreach ($links as $key => $value) {
+        // hide from all admin users, may be required for phase 2
+        
+        // $type = explode("-&nbsp;", $value['title'] );
+        // if( !empty( $type['1'] ) ) {
+        //     if ( "{$type['1']}" == 'Denomination' ) {
+        //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+        //     }
+        //     if (  "{$type['1']}" == 'Pastoral Charge' ) {
+        //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+        //     }
+        //     if (  "{$type['1']}" == 'Presbytery' ) {
+        //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+        //     }
+        //     if (  "{$type['1']}" == 'Conference' ) {
+        //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+        //     }
+        //     if (  "{$type['1']}" == 'Congregation' ) {
+        //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+        //     }
+        // } else  if ( $value['title'] == 'Organization' ) {
+        //     $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&reset=1");
+        // }
+        // else 
+        unset($links[$key]);
+      }
+    } 
     
-      $sysadmins = getSysAdmins();
-      if ( in_array( $_SESSION[ 'CiviCRM' ][ 'userID' ], $sysadmins ) ) {
-        $links[20]['title'] = 'RBC Import';
-        $links[20]['url'] = CRM_Utils_System::url('civicrm/contribute/rbc/import',"reset=1");
-        $links[21]['title'] = 'RBC Export';
-        $links[21]['url'] = CRM_Utils_System::url('direct_debit',"reset=1");
-        $links[24]['title'] = 'Service Charge Rates';
-        $links[24]['url'] = CRM_Utils_System::url('civicrm/contribute/par/service/fees',"reset=1");
-        $links[25]['title'] = 'Export Donations';
-        $links[25]['url'] = CRM_Utils_System::url('civicrm/contribute/search',"reset=1");
-        $links[26]['title'] = 'Import Donations';
-        $links[26]['url'] = CRM_Utils_System::url('civicrm/contribute/import',"reset=1");
-        if (variable_get('maintenance_mode')) {
-          $links[] = array(
-            'title' => 'Set PAR Online online',
-            'url' => CRM_Utils_System::url('admin/config/development/maintenance'),
-          );
-        }
-        $extraString = '';
-        if (CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824')) {
-          $extraString = ' enabled-sync';
-        }
+    $sysadmins = getSysAdmins();
+    if (in_array($_SESSION['CiviCRM']['userID'], $sysadmins)) {
+      $links[20]['title'] = 'RBC Import';
+      $links[20]['url'] = CRM_Utils_System::url('civicrm/contribute/rbc/import', 'reset=1');
+      $links[21]['title'] = 'RBC Export';
+      $links[21]['url'] = CRM_Utils_System::url('direct_debit', 'reset=1');
+      $links[24]['title'] = 'Service Charge Rates';
+      $links[24]['url'] = CRM_Utils_System::url('civicrm/contribute/par/service/fees', 'reset=1');
+      $links[25]['title'] = 'Export Donations';
+      $links[25]['url'] = CRM_Utils_System::url('civicrm/contribute/search', 'reset=1');
+      $links[26]['title'] = 'Import Donations';
+      $links[26]['url'] = CRM_Utils_System::url('civicrm/contribute/import', 'reset=1');
+      if (variable_get('maintenance_mode')) {
         $links[] = array(
-          'title' => 'Monthly Sync to Legacy',
-          'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
-          'ref' => 'montly-sync-legacy'
-        );
-        $links[] = array(
-          'title' => 'Monthly Sync from Legacy',
-          'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
-          'ref' => "sync-legacy{$extraString}"
-        );
-        $links[] = array(
-          'title' => 'View Upcoming Credit Card Donation(s)',
-          'url' => CRM_Utils_System::url('civicrm/report/instance/39', 'force=1&payment_instrument_id_value=1&payment_instrument_id_op=in&contribution_status_id_value=5&contribution_status_id_op=in'),
+          'title' => 'Set PAR Online online',
+          'url' => CRM_Utils_System::url('admin/config/development/maintenance'),
         );
       }
-      if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
-        $links[0]['title'] = 'Add New Donor / Supporter / Member';
-        $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
-        $links[22]['title'] = 'View Donor / Supporter / Member';
-        $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16&force=1");
-      } else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
-        $links[0]['title'] = 'Add New Donor / Supporter / Member';
-        $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
-        $links[22]['title'] = 'View Donor / Supporter / Member';
-        $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18&force=1");
+      $extraString = '';
+      if (CRM_Core_DAO::singleValueQuery('SELECT value FROM civicrm_option_value WHERE id = 824')) {
+        $extraString = ' enabled-sync';
       }
-      $links[23]['title'] = 'My Dashboard';
-      $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
       $links[] = array(
-        'title' => 'Logout',
-        'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),
+        'title' => 'Monthly Sync to Legacy',
+        'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
+        'ref' => 'montly-sync-legacy'
+      );
+      $links[] = array(
+        'title' => 'Monthly Sync from Legacy',
+        'url' => CRM_Utils_System::url('civicrm', 'reset=1'),
+        'ref' => "sync-legacy{$extraString}"
+      );
+      $links[] = array(
+        'title' => 'View Upcoming Credit Card Donation(s)',
+        'url' => CRM_Utils_System::url('civicrm/report/instance/39', 'force=1&payment_instrument_id_value=1&payment_instrument_id_op=in&contribution_status_id_value=5&contribution_status_id_op=in'),
       );
     }
+    if (CRM_Contact_BAO_GroupContact::isContactInGroup($_SESSION['CiviCRM']['userID'], DENOMINATION_ADMIN_GROUP_ID)) {
+      $links[0]['title'] = 'Add New Donor / Supporter / Member';
+      $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create', 'gid=13&reset=1');
+      $links[22]['title'] = 'View Donor / Supporter / Member';
+      $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom', 'reset=1&csid=16&force=1');
+    } 
+    elseif (CRM_Contact_BAO_GroupContact::isContactInGroup($_SESSION['CiviCRM']['userID'], PAR_ADMIN_GROUP_ID)) {
+      $links[0]['title'] = 'Add New Donor / Supporter / Member';
+      $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create', 'gid=13&reset=1');
+      $links[22]['title'] = 'View Donor / Supporter / Member';
+      $links[22]['url'] = CRM_Utils_System::url('civicrm/contact/search/custom', 'reset=1&csid=18&force=1');
+    }
+    $links[23]['title'] = 'My Dashboard';
+    $links[23]['url'] = CRM_Utils_System::url('civicrm/dashboard', 'reset=1');  
+    $links[] = array(
+      'title' => 'Logout',
+      'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),
+    );
+  }
 }
 
 function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
