@@ -29,6 +29,7 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
       1 => $uploadSize,
       2 => $uploadFileSize,
     )), 'maxfilesize', $uploadFileSize);
+    $this->addRule('uploadFile', ts('Input file must be in CSV format'), 'mimetype', array('text/csv', 'text/comma-separated-values'));
     $this->addRule('uploadFile', ts('Input file must be in CSV format'), 'utf8File');
     $this->addRule('uploadFile', ts('A valid file must be uploaded.'), 'uploadedfile');
 
@@ -97,5 +98,8 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
    *
    * @return None
    */
-  public function postProcess() {}
+  public function postProcess() {
+    $params = 
+      $this->_params = $this->controller->exportValues($this->_name);
+  }
 }
