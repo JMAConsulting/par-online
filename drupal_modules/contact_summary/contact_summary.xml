@@ -86,5 +86,6 @@
      <path>civicrm/contributionrecur/import</path>
      <page_callback>CRM_Contact_Form_ImportMonerisDonations</page_callback> 
      <access_arguments>administer CiviCRM</access_arguments> 
+     <title>Import Moneris Donation IDs</title>
   </item>
 </menu>
