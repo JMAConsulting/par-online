@@ -137,6 +137,9 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
       CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactID, 'external_identifier', $externalIdentifier . '-' . $count);
       $count++;
     }
+    $contacts[] = $mainContactId;
+    $query = "SELECT last_name, first_name FROM civicrm_contact WHERE id IN (" . implode(",", $contacts) . ")";
+    $houseHoldId = $this->createHouseHoldName($query, $houseHoldId, $externalIdentifier);
     CRM_Core_Session::singleton()->set('numberOfContacts', '');
     CRM_Core_Session::setStatus(ts('Supporters successfully merged.'));
   } 
