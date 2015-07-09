@@ -120,6 +120,10 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
             }    
           }
         }
+        if (!in_array($contactID, $params['otherHousehold'])) {
+          $pLogParams = array('primary_contact_id' => $contactID);
+          make_entry_in_par_log('Delete', $pLogParams);
+        }
       }
     }
     if (empty($contacts)) {
