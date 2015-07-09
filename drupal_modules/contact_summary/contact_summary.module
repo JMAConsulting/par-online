@@ -1544,6 +1544,28 @@ function updateRelationCache( $contacts, $op = 'add' ){
 function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef ) {
     if( $objectName == 'Relationship' ) {
         require_once 'CRM/Utils/Array.php';
+        if ($objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID 
+          && in_array($op, array('create', 'edit'))
+        ){
+          if ($objectRef->contact_id_b) {
+            $params = array( 
+              'version' => 3,
+              'return.custom_16' => 1,
+              'entity_id' => $objectRef->contact_id_b,
+            );
+            require_once 'api/api.php';
+            $result = civicrm_api('custom_value', 'get', $params);
+            $msNumber = CRM_Utils_Array::value('latest', CRM_Utils_Array::value(16, $result['values']));
+            if ($msNumber) {
+              $params = array( 
+                'version' => 3,
+                'custom_16' => $msNumber,
+                'entity_id' => $objectRef->contact_id_a,
+              );
+              civicrm_api('custom_value', 'create', $params);
+            }
+          }
+        }
         if( $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID || $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID || $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID ) {
             $relatedContacts = array();
             if( $objectRef->relationship_type_id != SUPPORTER_RELATION_TYPE_ID ){
