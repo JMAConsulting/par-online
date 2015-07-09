@@ -101,5 +101,82 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
   public function postProcess() {
     $params = 
       $this->_params = $this->controller->exportValues($this->_name);
+    $file = $params['uploadFile']['name'];
+    $fd = fopen($file, 'r');
+    if (CRM_Utils_Array::value('skipColumnHeader', $params)) {
+      $firstrow = fgetcsv($fd, 0);
+    }
+    $error = array();
+    require_once 'CRM/Contribute/PseudoConstant.php';
+    $contributionStatus = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
+    $contributionParams = array(
+      2 => array(array_search('In Progress', $contributionStatus), 'Integer'),
+    );
+    $isImported = FALSE;
+    while ($row = fgetcsv($fd, 0)) {
+      $customerID = $row[11];
+      $orderId = $row[4];
+      if (!$customerID || !$orderId) {
+        $row['error'] = ts('Customer id or order id not present');
+        $error[] = $row;
+        continue;
+      }
+      list($msNumber, $donorId) = explode('_', $customerID);
+      if (!$msNumber || !$donorId) {
+        $row['error'] = ts('Ms Number or Donor id is Invalid');
+        $error[] = $row;
+        continue;        
+      }
+      $sql = 'SELECT cc.id FROM civicrm_contact cc 
+        INNER JOIN civicrm_value_other_details_7 cv ON cv.entity_id = cc.id 
+        WHERE cc.external_identifier LIKE %1 AND cv.ms_number_16 = %2
+      ';
+      $sqlParams = array(
+        1 => array('D-' . $donorId, 'String'),
+        2 => array($msNumber, 'Integer'),
+      );
+      $contactId = CRM_Core_DAO::singleValueQuery($sql, $sqlParams);
+      if (!$contactId) {
+        $row['error'] = ts('No Donor found in database for customer id');
+        $error[] = $row;
+        continue;          
+      }
+      $contributionParams[1] = array($contactId, 'Integer');
+      $sql = 'SELECT id FROM civicrm_contribution_recur 
+        WHERE contact_id = %1 AND contribution_status_id = %2 AND payment_instrument_id = 1
+        ORDER BY id DESC LIMIT 1';
+      $contributionRecurId = CRM_Core_DAO::singleValueQuery($sql, $contributionParams);
+      if (!$contributionRecurId) {
+        $row['error'] = ts('No In Progress Donation found in database for this customer id');
+        $error[] = $row;
+        continue;          
+      }
+      CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET invoice_id = '$orderId' WHERE id = {$contributionRecurId}");
+      $isImported = TRUE;
+    }
+    if ($isImported) {
+      require_once('CRM/Contact/BAO/Group.php');
+      $params = array(
+        'source_contact_id' => 1,
+        'activity_type_id' => IMPORT_MONERIS_REPORT_ACTIVITY_TYPE_ID,
+        'assignee_contact_id' => array_keys(CRM_Contact_BAO_Group::getGroupContacts(SYSTEM_ADMIN)),
+        'subject' => 'Import Moneris report',
+        'activity_date_time' => date('Y-m-d H:i:s'),
+        'status_id' => 2,
+        'priority_id' => 2,
+        'version' => 3,
+        'attachFile_1' => array(
+          'uri' => $file,
+          'type' => 'text/csv',
+          'location' => $file,
+          'upload_date' => date('YmdHis'),
+        ),
+      );
+      $result = civicrm_api('activity', 'create', $params);
+      if (CRM_Utils_Array::value('id', $result)) {
+       $url = CRM_Utils_System::url('civicrm/contact/view/activity', "action=view&reset=1&cid=1&id={$result['id']}&atype=" . IMPORT_MONERIS_REPORT_ACTIVITY_TYPE_ID);
+       CRM_Core_Session::singleton()->replaceUserContext($url);
+      }
+    }
   }
 }
