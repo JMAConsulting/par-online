@@ -1752,7 +1752,8 @@ contact_id_a = ' . $objectId);
       $dao->fetch();
       if ($dao->N) {
         // update household name
-        $extraSet = " `log_action` = 'Update', ";
+        $op = 'Update';
+        $extraSet = '';
         $query = "SELECT first_name, last_name FROM civicrm_contact WHERE is_deleted = 0 AND external_identifier LIKE 'D-" . $externalId[1] . "%';";
         $contactDAO = CRM_Core_DAO::executeQuery($query);
         $records = array();
@@ -1779,7 +1780,8 @@ contact_id_a = ' . $objectId);
         }
       }
       else {
-        $extraSet = " `log_action` = 'Delete', 
+        $op = 'Delete';
+        $extraSet = " 
           `m&s_amount` = '0.00',
           general_amount = '0.00',
           other_amount = '0.00', ";          
@@ -1794,7 +1796,6 @@ end_date = now(),
 is_deleted = 1
 WHERE is_deleted = 0 AND external_identifier LIKE 'H-{$externalId[1]}'");
       }
-
       if (!array_key_exists(2, $externalId)) {
         if ($dao->N) {
           // set external identifier to null if count of members in household is > 1
@@ -1841,7 +1842,10 @@ SET  `log_time` = now(),
 ccr.contribution_status_id = 1
 WHERE  clpd.primary_contact_id = {$objectId}";      
       CRM_Core_DAO::executeQuery($query);
-
+      if ($op) { 
+        $pLogParams = array('primary_contact_id' => $objectId);
+        make_entry_in_par_log($op, $pLogParams);
+      }
       if ($logs && $logs->N) {
         $logs->fetch();
         require_once('CRM/Contribute/PseudoConstant.php');
