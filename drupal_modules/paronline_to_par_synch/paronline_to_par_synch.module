@@ -27,7 +27,7 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$objectRef->contact_id_a;
       $log_id = CRM_Core_DAO::singleValueQuery($query);
       if ( !empty($log_id) ) {
-        make_entry_in_par_log('Update', $params, $op == 'create' ? 'Insert': NULL);
+        make_entry_in_par_log('Update', $params);
       } else {
         make_entry_in_par_log('Insert', $params );
       }
@@ -144,7 +144,7 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id =".$objectRef->id;
       $log_id = CRM_Core_DAO::singleValueQuery($query);
       if ( !empty($log_id) ) {
-        make_entry_in_par_log( 'Update', $params, 'Insert');
+        make_entry_in_par_log( 'Update', $params );
       } else {
         make_entry_in_par_log( 'Insert', $params );
       }
