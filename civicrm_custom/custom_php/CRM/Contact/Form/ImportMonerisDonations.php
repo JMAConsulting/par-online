@@ -143,6 +143,9 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
         $error[] = $row;
         continue;        
       }
+      if ($params['ms_number'] != $msNumber) {
+        continue;
+      }
       $sql = 'SELECT cc.id FROM civicrm_contact cc 
         INNER JOIN civicrm_value_other_details_7 cv ON cv.entity_id = cc.id 
         WHERE cc.external_identifier LIKE %1 AND cv.ms_number_16 = %2
