@@ -43,6 +43,7 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
         'isDefault' => TRUE,
       ),
     ));
+    $this->addFormRule(array('CRM_Contact_Form_ImportMonerisDonations', 'formRule'), $this);
   }
   
   /**
@@ -56,7 +57,19 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
    * @access public
    * @static
    */
-  static function formRule($fields, $files, $self) {}
+  static function formRule($fields, $files, $self) {
+    $error = array();
+    if (!empty($fields['ms_number'])) {
+      $sql = "SELECT cv.id FROM `civicrm_contact` cc
+        INNER JOIN civicrm_relationship cr ON cr.contact_id_a = cc.id 
+        INNER JOIN civicrm_value_other_details_7 cv ON cv.entity_id = cr.contact_id_b
+        WHERE `external_identifier` LIKE 'A-%' AND cr.relationship_type_id = " . PAR_ADMIN_RELATION_TYPE_ID . " AND ms_number_16 = {$fields['ms_number']}";
+      if (!CRM_Core_DAO::singleValueQuery($sql)) {
+        $error['ms_number'] = ts('Entered PAR Charge MS Number not found in database.');
+      }
+    }
+    return $error;
+  }
 
   /**
    * Format size.
