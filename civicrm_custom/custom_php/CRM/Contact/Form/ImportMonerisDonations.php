@@ -103,8 +103,9 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
       $this->_params = $this->controller->exportValues($this->_name);
     $file = $params['uploadFile']['name'];
     $fd = fopen($file, 'r');
+    $header = array();
     if (CRM_Utils_Array::value('skipColumnHeader', $params)) {
-      $firstrow = fgetcsv($fd, 0);
+      $header = fgetcsv($fd, 0);
     }
     $error = array();
     require_once 'CRM/Contribute/PseudoConstant.php';
@@ -114,6 +115,7 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
     );
     $isImported = FALSE;
     while ($row = fgetcsv($fd, 0)) {
+      $isImported = TRUE;
       $customerID = $row[11];
       $orderId = $row[4];
       if (!$customerID || !$orderId) {
@@ -152,7 +154,6 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
         continue;          
       }
       CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution_recur SET invoice_id = '$orderId' WHERE id = {$contributionRecurId}");
-      $isImported = TRUE;
     }
     if ($isImported) {
       require_once('CRM/Contact/BAO/Group.php');
@@ -172,11 +173,31 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
           'upload_date' => date('YmdHis'),
         ),
       );
+      if (!empty($error)) {
+        require_once('CRM/Import/Parser.php');
+        if (!empty($header)) {
+          $header['error'] = ts('Error Message');
+        } 
+        $config = CRM_Core_Config::singleton();
+        $fileName = $config->customFileUploadDir . '/Import-Error-' . date('Y-m-d-His') .'.csv';
+        CRM_Import_Parser::exportCSV($fileName, $header, $error);
+        $params['attachFile_2'] = array(
+          'uri' => $fileName,
+          'cleanName' => 'Import-Error.csv',
+          'type' => 'text/csv',
+          'location' => $fileName,
+          'upload_date' => date('YmdHis'),
+        );
+      }
       $result = civicrm_api('activity', 'create', $params);
       if (CRM_Utils_Array::value('id', $result)) {
        $url = CRM_Utils_System::url('civicrm/contact/view/activity', "action=view&reset=1&cid=1&id={$result['id']}&atype=" . IMPORT_MONERIS_REPORT_ACTIVITY_TYPE_ID);
        CRM_Core_Session::singleton()->replaceUserContext($url);
       }
+    }
+    else {
+      $url = CRM_Utils_System::url('civicrm', 'reset=1');
+      CRM_Core_Session::singleton()->replaceUserContext($url);
     }
   }
 }
