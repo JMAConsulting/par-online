@@ -33,7 +33,8 @@ class CRM_Contact_Form_ImportMonerisDonations extends CRM_Core_Form {
     $this->addRule('uploadFile', ts('Input file must be in CSV format'), 'utf8File');
     $this->addRule('uploadFile', ts('A valid file must be uploaded.'), 'uploadedfile');
 
-    $this->addElement('checkbox', 'skipColumnHeader', ts('First row contains column headers')); 
+    $this->addElement('checkbox', 'skipColumnHeader', ts('First row contains column headers'));
+    $this->add('text', 'ms_number', ts('PAR Charge MS Number'), NULL, TRUE);
     $this->addButtons(array(
       array(
         'type' => 'upload',

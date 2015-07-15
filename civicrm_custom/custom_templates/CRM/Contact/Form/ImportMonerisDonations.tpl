@@ -29,6 +29,11 @@ This import should be done <b>AFTER</b> the monthly synchronization has taken PA
 <div class='clear'>&nbsp;</div>
 <table class="form-layout">
   <tr>
+    <td class="label">{$form.ms_number.label}</td>
+    <td>{$form.ms_number.html} 
+    </td>
+  </tr>
+  <tr>
     <td class="label">{$form.uploadFile.label}</td>
     <td>{$form.uploadFile.html}<br />
       <div class="description">{ts}File format must be comma-separated-values (CSV). File must be UTF8 encoded if it contains special characters (e.g. accented letters, etc.).{/ts}</div>
