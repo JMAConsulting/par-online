@@ -8,7 +8,7 @@ class mpgGlobals
 
 	var $Globals=array(
 		'MONERIS_PROTOCOL' => 'https',
-		'MONERIS_HOST' => 'esqa.moneris.com',
+		'MONERIS_HOST' => 'www3.moneris.com',
 		'MONERIS_PORT' =>'443',
 		'MONERIS_FILE' => '/gateway2/servlet/MpgRequest',
 		'API_VERSION'  =>'PHP - 2.5.6',
