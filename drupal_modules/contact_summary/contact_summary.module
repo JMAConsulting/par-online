@@ -540,8 +540,9 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
         require_once 'CRM/Core/BAO/CustomValueTable.php';
         $congregation = '';
         $congregations = findContactCongregation();
-        if (CRM_Utils_Array::value( 'id', $_GET )) {
-          $congregation = CRM_Core_BAO_CustomValueTable::getEntityValues(CRM_Utils_Array::value( 'id', $_GET ), 'Individual', array(47));
+        if ($userId = CRM_Utils_Request::retrieve('id', 'Integer')) {
+          $congregation = CRM_Core_BAO_CustomValueTable::getEntityValues($userId, 'Individual', array(47));
+          $form->setDefaults(array('custom_47' => CRM_Contact_BAO_Contact::displayName($congregation[47])));
         }
         if (!$congregation && !CRM_Utils_Array::value( 'id', $_GET )) {
           $form->setDefaults(array('custom_47' => key($congregations)));
@@ -2334,22 +2335,25 @@ function findContactCongregation($cid = NULL) {
     return NULL;
   }
   $congregations = array();
-  $query = 'SELECT contact_id_b, organization_name
-FROM `civicrm_relationship`
-LEFT JOIN civicrm_contact cc ON cc.id = contact_id_b
-WHERE contact_id_a = %1 AND `relationship_type_id` = %2 AND is_active = 1
-ORDER BY organization_name';
+    
+  $query = "SELECT c.id AS id, c.display_name AS name
+    FROM custom_relatedContacts r 
+    INNER JOIN civicrm_contact c ON r.related_id=c.id AND c.contact_sub_type = 'Congregation' 
+    WHERE r.contact_id = %1
+    ORDER by display_name ASC";
+
   $queryParams = array(
     1 => array($cid, 'Integer'),
-    2 => array(PAR_ADMIN_RELATION_TYPE_ID, 'Integer'),
   );
   
   $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
+
   if ($dao->N >= 1) {
     while ($dao->fetch()) {
-      $congregations[$dao->contact_id_b] = $dao->organization_name;
+      $congregations[$dao->id] = $dao->name;
     }
   }
+
   return $congregations;
 }
 
