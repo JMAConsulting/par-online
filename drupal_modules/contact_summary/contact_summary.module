@@ -539,13 +539,9 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
         // set default values
         require_once 'CRM/Core/BAO/CustomValueTable.php';
         $congregation = '';
-        $congregations = findContactCongregation();
         if ($userId = CRM_Utils_Request::retrieve('id', 'Integer')) {
           $congregation = CRM_Core_BAO_CustomValueTable::getEntityValues($userId, 'Individual', array(47));
           $form->setDefaults(array('custom_47' => CRM_Contact_BAO_Contact::displayName($congregation[47])));
-        }
-        if (!$congregation && !CRM_Utils_Array::value( 'id', $_GET )) {
-          $form->setDefaults(array('custom_47' => key($congregations)));
         }
         $isParAdmin   = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, PAR_ADMIN_GROUP_ID );
         $isDenomAdmin = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, DENOMINATION_ADMIN_GROUP_ID );
@@ -562,7 +558,7 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
             }
         }
         if( $isDenomAdmin || $isSysAdmin ) {
-            $contactId = CRM_Utils_Array::value( 'id', $_GET );
+            $contactId = CRM_Utils_Request::retrieve( 'id', 'Integer' );
             if( !$contactId ) {
                 $contactId = $currentUserId;
             }
