@@ -667,7 +667,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
         require_once "CRM/Core/PseudoConstant.php";
         require_once 'api/api.php';
         $contributions = array();
-        CRM_Core_PseudoConstant::populate( &$contributions, 'CRM_Contribute_DAO_Contribution', true, 'id', false, "contribution_status_id in ( 5, 7 ) and contact_id = {$_GET['cid']}" );
+        CRM_Core_PseudoConstant::populate($contributions, 'CRM_Contribute_DAO_Contribution', true, 'id', false, "contribution_status_id in ( 5, 7 ) and contact_id = {$_GET['cid']}");
         if ( count($contributions) ) {
             CRM_Core_Session::setStatus( 'Donor cannot be deleted until all financial transactions have been deleted by the system administrator.' );
             CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
