@@ -715,8 +715,7 @@ WHERE cc.id = " . $postParams['contribution_id'];
       }
       chdir($civicrm_root. '/bin/');
       $screenName = 'import-' . date('Ymd');
-      shell_exec('nohup screen -dmS ' . $screenName);
-      shell_exec("php {$file}.php 1 &");
+      shell_exec('nohup screen -dmS ' . $screenName . " php {$file}.php 1 &");
     }
     
     function save_log_changes($params) {
