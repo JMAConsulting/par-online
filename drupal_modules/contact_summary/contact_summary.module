@@ -289,7 +289,7 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
            $search['Tasks To Do'] = "<a href=".CRM_Utils_System::url( 'civicrm/report/instance/3',"reset=1").">Tasks To Do</a>";
        }
        $url = CRM_Utils_System::url('civicrm/contact/search/custom', array('reset' => 1, 'csid' => 17, 'snippet'=> 6), FALSE, NULL, FALSE);
-       $search['Quick Charge Search'] = CRM_Utils_System::getServerResponse($url);
+       $search['Quick Charge Search'] = "<div id='quick_user_search-org'>" . CRM_Utils_System::getServerResponse($url) . '<div>';
        $search['Quick User Search'] = "<div id='quick_user_search'><form id='Custom' name='Custom' method='post' action=".CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16").">
 
 
@@ -338,7 +338,15 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
 
 
 
-</form></div>";
+</form></div>
+<script type='text/javascript'>
+cj(function() {
+   cj('#quick_user_search-org input[name=" . '"qfKey"' . "]').remove();
+   cj('#quick_user_search-org form').attr('action', '" . CRM_Utils_System::url('civicrm/contact/search/custom', 'reset=1&csid=17', FALSE, NULL, FALSE) . "');
+});
+</script>
+
+";
    }
     $contentPlacement = 2;
     if ( !empty( $search ) ) {
