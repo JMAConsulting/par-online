@@ -549,7 +549,7 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
         $congregation = '';
         if ($userId = CRM_Utils_Request::retrieve('id', 'Integer')) {
           $congregation = CRM_Core_BAO_CustomValueTable::getEntityValues($userId, 'Individual', array(47));
-          $form->setDefaults(array('custom_47' => CRM_Contact_BAO_Contact::displayName($congregation[47])));
+          $form->setDefaults(array('custom_47_id' => CRM_Contact_BAO_Contact::displayName($congregation[47])));
         }
         $isParAdmin   = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, PAR_ADMIN_GROUP_ID );
         $isDenomAdmin = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, DENOMINATION_ADMIN_GROUP_ID );
@@ -1415,7 +1415,7 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
     if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){      
       $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
       $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
-      if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+      if( !$supporter_id && CRM_Utils_Array::value( 'custom_47_id', $form->_submitValues )) {
         $relId = '';
         $rel = array( 'version'              => 3,
                              'contact_id_a'         => $form->getVar( "_id" ),
@@ -1431,14 +1431,14 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
           }
         }
         if ($relId) {
-          CRM_Core_DAO::executeQuery("UPDATE civicrm_relationship SET contact_id_b = {$form->_submitValues['custom_47']} WHERE id = {$relId}");
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_relationship SET contact_id_b = {$form->_submitValues['custom_47_id']} WHERE id = {$relId}");
         }
         else {
-          $rel['contact_id_b'] = $form->_submitValues['custom_47'];
+          $rel['contact_id_b'] = $form->_submitValues['custom_47_id'];
           $result = civicrm_api( 'relationship', 'create' , $rel );
         }
       }
-      if( !$supporter_id && !CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+      if( !$supporter_id && !CRM_Utils_Array::value( 'custom_47_id', $form->_submitValues )) {
         $getRelationParam = array( 'version'     => 3,
                             'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
         require_once 'api/api.php';
